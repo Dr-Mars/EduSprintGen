@@ -1,13 +1,571 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import {
+  loginSchema,
+  insertUserSchema,
+  insertPfeProposalSchema,
+  insertReportSchema,
+  insertDefenseSchema,
+  insertJuryMemberSchema,
+  insertEvaluationSchema,
+  insertCompanySchema,
+  insertSpecialtySchema,
+  insertAcademicYearSchema,
+} from "@shared/schema";
+import { z } from "zod";
+import bcrypt from "bcrypt";
+import express from "express";
+
+// Middleware for authentication (simplified - in production would use JWT)
+const authMiddleware = (req: Request, res: Response, next: Function) => {
+  // For now, we'll skip auth in development
+  // In production, this would verify JWT tokens
+  next();
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  // Parse JSON bodies
+  app.use(express.json());
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // ============================================
+  // AUTHENTICATION ROUTES
+  // ============================================
+
+  // Login
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = loginSchema.parse(req.body);
+      
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      }
+
+      if (!user.isActive) {
+        return res.status(403).json({ error: "Compte désactivé" });
+      }
+
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) {
+        return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+      }
+
+      // Don't send password in response
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ user: userWithoutPassword });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Logout (client-side mostly, server can invalidate sessions)
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    res.json({ success: true });
+  });
+
+  // Get current user (would verify JWT in production)
+  app.get("/api/auth/me", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      // In production, get user ID from JWT token
+      // For now, return mock data or require userId in query
+      res.json({ user: null });
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // USER ROUTES
+  // ============================================
+
+  // List all users (admin only)
+  app.get("/api/users", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const users = await storage.listUsers();
+      // Remove passwords from response
+      const usersWithoutPasswords = users.map(({ password: _, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("List users error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get single user
+  app.get("/api/users/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Create user
+  app.post("/api/users", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existing = await storage.getUserByEmail(userData.email);
+      if (existing) {
+        return res.status(409).json({ error: "Un utilisateur avec cet email existe déjà" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      
+      const user = await storage.createUser({
+        ...userData,
+        password: hashedPassword,
+      });
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create user error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Update user
+  app.patch("/api/users/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const updates = req.body;
+      
+      // If password is being updated, hash it
+      if (updates.password) {
+        updates.password = await bcrypt.hash(updates.password, 10);
+      }
+
+      const user = await storage.updateUser(req.params.id, updates);
+      if (!user) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Toggle user active status
+  app.patch("/api/users/:id/toggle-active", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { isActive } = req.body;
+      const user = await storage.toggleUserActive(req.params.id, isActive);
+      if (!user) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // PFE PROPOSAL ROUTES
+  // ============================================
+
+  // List proposals (with filters)
+  app.get("/api/proposals", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { status, studentId, academicSupervisorId } = req.query;
+      
+      const proposals = await storage.listPfeProposals({
+        status: status as string,
+        studentId: studentId as string,
+        academicSupervisorId: academicSupervisorId as string,
+      });
+
+      res.json(proposals);
+    } catch (error) {
+      console.error("List proposals error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get single proposal
+  app.get("/api/proposals/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const proposal = await storage.getPfeProposal(req.params.id);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposition non trouvée" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Create proposal
+  app.post("/api/proposals", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const proposalData = insertPfeProposalSchema.parse(req.body);
+      const proposal = await storage.createPfeProposal(proposalData);
+      res.status(201).json(proposal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create proposal error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Update proposal
+  app.patch("/api/proposals/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const proposal = await storage.updatePfeProposal(req.params.id, req.body);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposition non trouvée" });
+      }
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Update proposal status (validate/reject/request modification)
+  app.patch("/api/proposals/:id/status", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { status, comments } = req.body;
+      
+      if (!["draft", "submitted", "to_modify", "validated", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Statut invalide" });
+      }
+
+      const proposal = await storage.updatePfeProposalStatus(req.params.id, status, comments);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposition non trouvée" });
+      }
+
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Assign academic supervisor
+  app.patch("/api/proposals/:id/assign-supervisor", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { supervisorId } = req.body;
+      
+      const proposal = await storage.assignAcademicSupervisor(req.params.id, supervisorId);
+      if (!proposal) {
+        return res.status(404).json({ error: "Proposition non trouvée" });
+      }
+
+      res.json(proposal);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // REPORT ROUTES
+  // ============================================
+
+  // List reports for a proposal
+  app.get("/api/proposals/:proposalId/reports", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const reports = await storage.listReportsByProposal(req.params.proposalId);
+      res.json(reports);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get single report
+  app.get("/api/reports/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const report = await storage.getReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Rapport non trouvé" });
+      }
+      res.json(report);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Create report (simplified - file upload would be handled differently)
+  app.post("/api/reports", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const reportData = insertReportSchema.parse(req.body);
+      const report = await storage.createReport(reportData);
+      
+      // In production, this would trigger plagiarism analysis
+      // For now, simulate with random score
+      const mockPlagiarismScore = Math.floor(Math.random() * 60);
+      await storage.updatePlagiarismScore(report.id, mockPlagiarismScore);
+      
+      res.status(201).json(report);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create report error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // DEFENSE ROUTES
+  // ============================================
+
+  // List defenses
+  app.get("/api/defenses", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { status, userId } = req.query;
+      
+      const defenses = await storage.listDefenses({
+        status: status as string,
+        userId: userId as string,
+      });
+
+      res.json(defenses);
+    } catch (error) {
+      console.error("List defenses error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get single defense
+  app.get("/api/defenses/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const defense = await storage.getDefense(req.params.id);
+      if (!defense) {
+        return res.status(404).json({ error: "Soutenance non trouvée" });
+      }
+      res.json(defense);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Create defense
+  app.post("/api/defenses", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const defenseData = insertDefenseSchema.parse(req.body);
+      const defense = await storage.createDefense(defenseData);
+      res.status(201).json(defense);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create defense error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Update defense
+  app.patch("/api/defenses/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const defense = await storage.updateDefense(req.params.id, req.body);
+      if (!defense) {
+        return res.status(404).json({ error: "Soutenance non trouvée" });
+      }
+      res.json(defense);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Add jury member to defense
+  app.post("/api/defenses/:defenseId/jury", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const juryMemberData = insertJuryMemberSchema.parse({
+        ...req.body,
+        defenseId: req.params.defenseId,
+      });
+      
+      const juryMember = await storage.addJuryMember(juryMemberData);
+      res.status(201).json(juryMember);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Remove jury member
+  app.delete("/api/jury-members/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      await storage.removeJuryMember(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // List jury members for a defense
+  app.get("/api/defenses/:defenseId/jury", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const juryMembers = await storage.listJuryMembersByDefense(req.params.defenseId);
+      res.json(juryMembers);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // EVALUATION ROUTES
+  // ============================================
+
+  // Create evaluation
+  app.post("/api/evaluations", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const evaluationData = insertEvaluationSchema.parse(req.body);
+      const evaluation = await storage.createEvaluation(evaluationData);
+      res.status(201).json(evaluation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // List evaluations for a defense
+  app.get("/api/defenses/:defenseId/evaluations", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const evaluations = await storage.listEvaluationsByDefense(req.params.defenseId);
+      res.json(evaluations);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // SPECIALTY ROUTES
+  // ============================================
+
+  app.get("/api/specialties", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const specialties = await storage.listSpecialties();
+      res.json(specialties);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  app.post("/api/specialties", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const specialtyData = insertSpecialtySchema.parse(req.body);
+      const specialty = await storage.createSpecialty(specialtyData);
+      res.status(201).json(specialty);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // COMPANY ROUTES
+  // ============================================
+
+  app.get("/api/companies", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const companies = await storage.listCompanies();
+      res.json(companies);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  app.post("/api/companies", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const companyData = insertCompanySchema.parse(req.body);
+      const company = await storage.createCompany(companyData);
+      res.status(201).json(company);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // ACADEMIC YEAR ROUTES
+  // ============================================
+
+  app.get("/api/academic-years", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const years = await storage.listAcademicYears();
+      res.json(years);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  app.get("/api/academic-years/active", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const year = await storage.getActiveAcademicYear();
+      if (!year) {
+        return res.status(404).json({ error: "Aucune année académique active" });
+      }
+      res.json(year);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  app.post("/api/academic-years", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const yearData = insertAcademicYearSchema.parse(req.body);
+      const year = await storage.createAcademicYear(yearData);
+      res.status(201).json(year);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // DASHBOARD/STATS ROUTES
+  // ============================================
+
+  app.get("/api/dashboard/stats", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId, role } = req.query;
+      
+      // Mock stats - in production, calculate from database
+      const stats = {
+        totalProposals: 0,
+        pendingProposals: 0,
+        validatedProposals: 0,
+        upcomingDefenses: 0,
+        mySupervisions: 0,
+        totalStudents: 0,
+      };
+
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
 
   const httpServer = createServer(app);
 
