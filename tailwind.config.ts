@@ -6,8 +6,8 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
-        md: ".375rem", /* 6px */
+        lg: "0.8rem", /* 12.8px - as per design guidelines */
+        md: "0.8rem", /* 12.8px - as per design guidelines */
         sm: ".1875rem", /* 3px */
       },
       colors: {
