@@ -30,12 +30,16 @@ function Router() {
 
   const handleLogin = async (credentials: LoginCredentials) => {
     try {
-      const response: any = await apiRequest("POST", "/api/auth/login", credentials);
-      setCurrentUser(response.user);
+      const response = await apiRequest("POST", "/api/auth/login", credentials);
+      const data = await response.json();
+      if (!data.user) {
+        throw new Error("Réponse invalide du serveur");
+      }
+      setCurrentUser(data.user);
       setLocation("/dashboard");
       toast({
         title: "Connexion réussie",
-        description: `Bienvenue ${response.user.firstName} !`,
+        description: `Bienvenue ${data.user.firstName} !`,
       });
     } catch (error: any) {
       toast({
@@ -49,7 +53,8 @@ function Router() {
 
   const handleLogout = async () => {
     try {
-      await apiRequest("POST", "/api/auth/logout", {});
+      const response = await apiRequest("POST", "/api/auth/logout", {});
+      await response.json();
       setCurrentUser(null);
       queryClient.clear();
       setLocation("/");
