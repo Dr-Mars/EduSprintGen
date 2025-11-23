@@ -16,6 +16,11 @@ import {
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import express from "express";
+import {
+  analyzeProposalQuality,
+  analyzePlagiarismRisk,
+  generateEvaluationFeedback,
+} from "./ai-validation";
 
 // Middleware for authentication (simplified - in production would use JWT)
 const authMiddleware = (req: Request, res: Response, next: Function) => {
@@ -564,6 +569,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // ============================================
+  // AI VALIDATION ROUTES
+  // ============================================
+
+  // Analyze proposal quality
+  app.post("/api/ai/analyze-proposal", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { title, description, context, problematic, objectives } = req.body;
+
+      if (!title || !description || !context || !problematic || !objectives) {
+        return res.status(400).json({ error: "Données manquantes pour l'analyse" });
+      }
+
+      const analysis = await analyzeProposalQuality(
+        title,
+        description,
+        context,
+        problematic,
+        objectives
+      );
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("AI analysis error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de l'analyse IA" });
+    }
+  });
+
+  // Analyze plagiarism risk
+  app.post("/api/ai/check-plagiarism", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { title, description, context } = req.body;
+
+      if (!title || !description || !context) {
+        return res.status(400).json({ error: "Données manquantes pour la vérification" });
+      }
+
+      const analysis = await analyzePlagiarismRisk(title, description, context);
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Plagiarism check error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de la vérification" });
+    }
+  });
+
+  // Generate evaluation feedback
+  app.post("/api/ai/generate-feedback", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { proposalTitle, criteria, scores } = req.body;
+
+      if (!proposalTitle || !criteria || !scores) {
+        return res.status(400).json({ error: "Données manquantes pour la génération" });
+      }
+
+      const feedback = await generateEvaluationFeedback(proposalTitle, criteria, scores);
+
+      res.json({ feedback });
+    } catch (error: any) {
+      console.error("Feedback generation error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de la génération" });
     }
   });
 
