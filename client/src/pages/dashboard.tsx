@@ -5,31 +5,41 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 
 interface DashboardProps {
   user?: {
     firstName: string;
     role: string;
   };
-  stats?: {
-    totalProposals?: number;
-    pendingProposals?: number;
-    validatedProposals?: number;
-    upcomingDefenses?: number;
-    mySupervisions?: number;
-    totalStudents?: number;
-  };
-  recentActivity?: Array<{
-    id: string;
-    title: string;
-    type: string;
-    status: "draft" | "submitted" | "validated" | "rejected";
-    date: string;
-  }>;
-  isLoading?: boolean;
 }
 
-export default function Dashboard({ user, stats = {}, recentActivity = [], isLoading }: DashboardProps) {
+export default function Dashboard({ user }: DashboardProps) {
+  const { data: proposals = [], isLoading: proposalsLoading } = useQuery({
+    queryKey: ["/api/proposals"],
+  });
+
+  const { data: defenses = [], isLoading: defensesLoading } = useQuery({
+    queryKey: ["/api/defenses"],
+  });
+
+  const stats = {
+    totalProposals: proposals.length,
+    pendingProposals: proposals.filter((p: any) => p.status === "submitted").length,
+    validatedProposals: proposals.filter((p: any) => p.status === "validated").length,
+    upcomingDefenses: defenses.filter((d: any) => d.status === "scheduled").length,
+    mySupervisions: proposals.length,
+    totalStudents: proposals.length,
+  };
+
+  const isLoading = proposalsLoading || defensesLoading;
+  const recentActivity = proposals.slice(0, 5).map((p: any) => ({
+    id: p.id,
+    title: p.title,
+    type: "proposal",
+    status: p.status,
+    date: new Date(p.createdAt || Date.now()).toLocaleDateString("fr-FR"),
+  }));
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Bonjour";

@@ -9,41 +9,21 @@ import { Search, FileText, Eye, CheckCircle, XCircle, MessageSquare, Filter } fr
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
 
-interface Proposal {
-  id: string;
-  title: string;
-  student: {
-    firstName: string;
-    lastName: string;
-    photoUrl?: string;
-  };
-  specialty: string;
-  type: "academic" | "company" | "research";
-  status: "draft" | "submitted" | "to_modify" | "validated" | "rejected";
-  submittedAt?: string;
-  academicSupervisor?: {
-    firstName: string;
-    lastName: string;
-  };
-}
-
-interface ProposalsListProps {
-  proposals?: Proposal[];
-  onValidate?: (id: string) => Promise<void>;
-  onReject?: (id: string, comment: string) => Promise<void>;
-  isLoading?: boolean;
-}
-
-export default function ProposalsList({ proposals = [], onValidate, onReject, isLoading }: ProposalsListProps) {
+export default function ProposalsList() {
+  const { data: proposals = [], isLoading } = useQuery({
+    queryKey: ["/api/proposals"],
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const filteredProposals = proposals.filter((proposal) => {
+  const filteredProposals = (proposals as any[]).filter((proposal) => {
+    const studentName = `${proposal.student?.firstName || ""} ${proposal.student?.lastName || ""}`;
     const matchesSearch =
       proposal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      `${proposal.student.firstName} ${proposal.student.lastName}`.toLowerCase().includes(searchQuery.toLowerCase());
+      studentName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || proposal.status === statusFilter;
     const matchesType = typeFilter === "all" || proposal.type === typeFilter;
     return matchesSearch && matchesStatus && matchesType;
