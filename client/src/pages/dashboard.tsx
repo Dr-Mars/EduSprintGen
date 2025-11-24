@@ -33,13 +33,15 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   const isLoading = proposalsLoading || defensesLoading;
-  const recentActivity = proposals.slice(0, 5).map((p: any) => ({
-    id: p.id,
-    title: p.title,
-    type: "proposal",
-    status: p.status,
-    date: new Date(p.createdAt || Date.now()).toLocaleDateString("fr-FR"),
-  }));
+  const recentActivity = Array.isArray(proposals) 
+    ? proposals.slice(0, 5).map((p: any) => ({
+        id: p.id || "",
+        title: p.title || "Sans titre",
+        type: "proposal",
+        status: p.status || "draft",
+        date: p.createdAt ? new Date(p.createdAt).toLocaleDateString("fr-FR") : new Date().toLocaleDateString("fr-FR"),
+      }))
+    : [];
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Bonjour";
