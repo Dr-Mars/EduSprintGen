@@ -23,10 +23,15 @@ function Router() {
   const { toast } = useToast();
 
   // Fetch specialties for the proposal form
-  const { data: specialties = [] } = useQuery<Array<{ id: string; name: string }>>({
+  const { data: specialtiesData = [] } = useQuery({
     queryKey: ["/api/specialties"],
     enabled: !!currentUser,
   });
+
+  // Ensure specialties is always an array of objects with id and name
+  const specialties = Array.isArray(specialtiesData) 
+    ? specialtiesData.map((s: any) => ({ id: s.id, name: s.name }))
+    : [];
 
   const handleLogin = async (credentials: LoginCredentials) => {
     try {
