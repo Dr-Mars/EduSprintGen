@@ -124,9 +124,9 @@ export default function DefenseResultsPage() {
                         {member.role}
                       </Badge>
                     </div>
-                    {evaluations.filter((e: any) => e.juryMemberId === member.id).map((eval: any) => (
-                      <p key={eval.id} className="text-sm text-muted-foreground">
-                        {eval.comments || "Pas de commentaire"}
+                    {evaluations.filter((e: any) => e.juryMemberId === member.id).map((evaluation: any) => (
+                      <p key={evaluation.id} className="text-sm text-muted-foreground">
+                        {evaluation.comments || "Pas de commentaire"}
                       </p>
                     ))}
                   </div>
