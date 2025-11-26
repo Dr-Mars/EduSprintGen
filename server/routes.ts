@@ -313,19 +313,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reports", authMiddleware, async (req: Request, res: Response) => {
     try {
       const reportData = insertReportSchema.parse(req.body);
+      
+      // Validate PDF (mock - in production use actual file handling)
+      if (reportData.fileName && !reportData.fileName.endsWith('.pdf')) {
+        return res.status(400).json({ error: "Seuls les fichiers PDF sont acceptés" });
+      }
+      
+      // Check file size (mock - in production validate actual file)
+      const mockFileSize = reportData.fileSize || 0;
+      if (mockFileSize > 50 * 1024 * 1024) { // 50MB max
+        return res.status(400).json({ error: "Le fichier ne doit pas dépasser 50MB" });
+      }
+      
       const report = await storage.createReport(reportData);
       
-      // In production, this would trigger plagiarism analysis
-      // For now, simulate with random score
-      const mockPlagiarismScore = Math.floor(Math.random() * 60);
-      await storage.updatePlagiarismScore(report.id, mockPlagiarismScore);
+      // Run plagiarism detection
+      const { detectPlagiarism } = await import("./plagiarism-detection");
+      const { score: plagiarismScore } = await detectPlagiarism(
+        report.id,
+        reportData.pfeProposalId,
+        reportData.fileUrl,
+        reportData.fileName
+      );
       
-      res.status(201).json(report);
+      // Update report with plagiarism score
+      const updatedReport = await storage.updatePlagiarismScore(report.id, plagiarismScore);
+      
+      res.status(201).json(updatedReport);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Données invalides", details: error.errors });
       }
       console.error("Create report error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Check plagiarism for a report
+  app.patch("/api/reports/:id/plagiarism", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const report = await storage.getReport(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Rapport non trouvé" });
+      }
+      
+      // Re-run plagiarism detection
+      const { detectPlagiarism } = await import("./plagiarism-detection");
+      const { score: plagiarismScore, similarReports } = await detectPlagiarism(
+        report.id,
+        report.pfeProposalId,
+        report.fileUrl,
+        report.fileName
+      );
+      
+      // Update report with plagiarism score
+      const updatedReport = await storage.updatePlagiarismScore(req.params.id, plagiarismScore);
+      
+      res.json({ report: updatedReport, similarReports });
+    } catch (error) {
       res.status(500).json({ error: "Erreur serveur" });
     }
   });
