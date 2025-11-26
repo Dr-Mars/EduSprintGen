@@ -21,6 +21,10 @@ import {
   analyzePlagiarismRisk,
   generateEvaluationFeedback,
 } from "./ai-validation";
+import { defenseService } from "./defense-service";
+import { juryService } from "./jury-service";
+import { gradingService } from "./grading-service";
+import { geminiFeedbackService } from "./gemini-feedback-service";
 
 // Middleware for authentication (simplified - in production would use JWT)
 const authMiddleware = (req: Request, res: Response, next: Function) => {
@@ -412,46 +416,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create defense
   app.post("/api/defenses", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const defenseData = insertDefenseSchema.parse(req.body);
-      const defense = await storage.createDefense(defenseData);
+      const { pfeProposalId, scheduledAt, room, duration } = req.body;
+      const defense = await defenseService.createDefense(
+        pfeProposalId,
+        new Date(scheduledAt),
+        room,
+        duration
+      );
       res.status(201).json(defense);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Données invalides", details: error.errors });
-      }
       console.error("Create defense error:", error);
-      res.status(500).json({ error: "Erreur serveur" });
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erreur serveur" });
     }
   });
 
-  // Update defense
+  // Update defense (reschedule)
   app.patch("/api/defenses/:id", authMiddleware, async (req: Request, res: Response) => {
     try {
+      const { scheduledAt, room } = req.body;
+      if (scheduledAt && room) {
+        const defense = await defenseService.rescheduleDefense(
+          req.params.id,
+          new Date(scheduledAt),
+          room
+        );
+        return res.json(defense);
+      }
       const defense = await storage.updateDefense(req.params.id, req.body);
       if (!defense) {
         return res.status(404).json({ error: "Soutenance non trouvée" });
       }
       res.json(defense);
     } catch (error) {
-      res.status(500).json({ error: "Erreur serveur" });
+      console.error("Update defense error:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erreur serveur" });
+    }
+  });
+
+  // Delete/Cancel defense
+  app.delete("/api/defenses/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { reason } = req.body;
+      const defense = await defenseService.cancelDefense(req.params.id, reason);
+      res.json(defense);
+    } catch (error) {
+      console.error("Cancel defense error:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erreur serveur" });
     }
   });
 
   // Add jury member to defense
   app.post("/api/defenses/:defenseId/jury", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const juryMemberData = insertJuryMemberSchema.parse({
-        ...req.body,
-        defenseId: req.params.defenseId,
-      });
-      
-      const juryMember = await storage.addJuryMember(juryMemberData);
+      const { userId, role } = req.body;
+      const juryMember = await juryService.addJuryMember(
+        req.params.defenseId,
+        userId,
+        role
+      );
       res.status(201).json(juryMember);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Données invalides", details: error.errors });
-      }
-      res.status(500).json({ error: "Erreur serveur" });
+      console.error("Add jury member error:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erreur serveur" });
     }
   });
 
@@ -468,8 +494,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // List jury members for a defense
   app.get("/api/defenses/:defenseId/jury", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const juryMembers = await storage.listJuryMembersByDefense(req.params.defenseId);
+      const juryMembers = await juryService.getJuryMembersWithDetails(req.params.defenseId);
       res.json(juryMembers);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Validate jury composition for a defense
+  app.get("/api/defenses/:defenseId/jury/validate", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const validation = await juryService.validateJuryComposition(req.params.defenseId);
+      res.json(validation);
     } catch (error) {
       res.status(500).json({ error: "Erreur serveur" });
     }
@@ -479,17 +515,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // EVALUATION ROUTES
   // ============================================
 
-  // Create evaluation
+  // Submit evaluations for a defense
   app.post("/api/evaluations", authMiddleware, async (req: Request, res: Response) => {
     try {
-      const evaluationData = insertEvaluationSchema.parse(req.body);
-      const evaluation = await storage.createEvaluation(evaluationData);
-      res.status(201).json(evaluation);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      const { defenseId, juryMemberId, evaluations } = req.body;
+      await gradingService.submitEvaluation(defenseId, juryMemberId, evaluations);
+      
+      // Try to generate AI feedback if service is available
+      if (geminiFeedbackService.isServiceAvailable()) {
+        await geminiFeedbackService.generateEvaluationFeedback({ defenseId });
       }
-      res.status(500).json({ error: "Erreur serveur" });
+      
+      res.status(201).json({ success: true, message: "Évaluations soumises avec succès" });
+    } catch (error) {
+      console.error("Submit evaluation error:", error);
+      res.status(400).json({ error: error instanceof Error ? error.message : "Erreur serveur" });
     }
   });
 
@@ -499,6 +539,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const evaluations = await storage.listEvaluationsByDefense(req.params.defenseId);
       res.json(evaluations);
     } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get defense results
+  app.get("/api/defenses/:id/results", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const defense = await storage.getDefense(req.params.id);
+      if (!defense) {
+        return res.status(404).json({ error: "Soutenance non trouvée" });
+      }
+      
+      const evaluations = await storage.listEvaluationsByDefense(req.params.id);
+      const juryMembers = await storage.listJuryMembersByDefense(req.params.id);
+      
+      res.json({
+        defense,
+        evaluations,
+        juryMembers,
+        scoringWeights: gradingService.getScoringWeights(),
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Get student results
+  app.get("/api/students/:studentId/results", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const proposals = await storage.listPfeProposals({ studentId: req.params.studentId });
+      const results = [];
+      
+      for (const proposal of proposals) {
+        const defenses = await defenseService.getProposalDefenses(proposal.id);
+        for (const defense of defenses) {
+          if (defense.status === "completed") {
+            const evaluations = await storage.listEvaluationsByDefense(defense.id);
+            results.push({
+              defense,
+              proposal,
+              evaluations,
+            });
+          }
+        }
+      }
+      
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Check room availability
+  app.get("/api/defenses/rooms/available", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { room, scheduledAt, duration } = req.query;
+      if (!room || !scheduledAt) {
+        return res.status(400).json({ error: "Paramètres manquants" });
+      }
+      
+      const available = await defenseService.isRoomAvailable(
+        room as string,
+        new Date(scheduledAt as string),
+        parseInt(duration as string) || 60
+      );
+      
+      res.json({ room, available });
+    } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Generate AI feedback for a defense
+  app.post("/api/defenses/:id/generate-feedback", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!geminiFeedbackService.isServiceAvailable()) {
+        return res.status(400).json({ error: "Service de feedback IA non disponible" });
+      }
+      
+      const feedback = await geminiFeedbackService.generateEvaluationFeedback({ defenseId: req.params.id });
+      res.json({ feedback });
+    } catch (error) {
+      console.error("Generate feedback error:", error);
       res.status(500).json({ error: "Erreur serveur" });
     }
   });
