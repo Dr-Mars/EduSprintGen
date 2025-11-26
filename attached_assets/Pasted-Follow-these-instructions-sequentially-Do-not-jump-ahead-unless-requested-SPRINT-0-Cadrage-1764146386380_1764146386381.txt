@@ -1,0 +1,56 @@
+Follow these instructions sequentially. Do not jump ahead unless requested.
+
+### SPRINT 0: Cadrage & Architecture
+- **Analysis:** Digest entities (User, PFEProposal, Report, Defense, Evaluation).
+- **DB:** Init Prisma schema with defined models.
+- **Backend:** Setup server entry point, global error handler, and module structure.
+- **Frontend:** Setup Router, Layout (Header/Sidebar), and Design System (Theme, Basic Components).
+- **Validation:** Ensure `/health` returns 200 and Frontend renders Layout.
+
+### SPRINT 1: Auth & RBAC
+- **Models:** Enhance `User` & `Role`.
+- **Backend:** Implement `AuthService` (Register, Login, Refresh), JWT Middleware, and RBAC Guard.
+- **Frontend:** Build Login/Profile pages and `RequireRole` Guard component.
+- **Deliverable:** Functional Auth loop with protected routes.
+
+### SPRINT 2: PFE Proposals Workflow
+- **Models:** Update `PFEProposal` (Status: DRAFT, SUBMITTED, VALIDATED, REJECTED).
+- **Features:** 
+  - Student: Create/Update Draft, Submit Proposal.
+  - Coordinator: List, Review (Validate/Reject), Assign Supervisor (Check workload).
+- **Frontend:** Multi-step form for students, Admin dashboard for coordinators.
+
+### SPRINT 3: Reports & Plagiarism
+- **Features:** 
+  - File Upload Service (PDF only, max size check).
+  - Versioning system for Reports.
+  - Plagiarism Mock Service (Simulate AI check returning 0-100 score).
+- **Frontend:** Drag & Drop upload, Version history view.
+
+### SPRINT 4: Defenses & Evaluation
+- **Models:** `Defense` (Planning), `DefenseMember` (Jury), `Evaluation`.
+- **Logic:** 
+  - Rules for Jury composition (No conflict of interest).
+  - Grade calculation (Weighted average of Report, Defense, Enterprise).
+- **Frontend:** Calendar view, Evaluation grid form, Results page.
+
+### SPRINT 5: Notifications & Messaging
+- **System:** Event-driven notification service (Observer pattern or simple service).
+- **Features:** In-app Notifications (Badge), 1-to-1 Messaging (User to User).
+- **UI:** Notification Bell, Chat Interface.
+
+### SPRINT 6: Analytics & Admin
+- **Analytics:** Stats for Completed PFEs, Success Rates, Plagiarism trends.
+- **Admin:** CRUD for Academic Years, Specialities, Grading Weights.
+- **Exports:** CSV generation endpoints.
+
+### SPRINT 7: Security & Hardening
+- **Security:** Rate limiting, Password strength policies, Audit Logs.
+- **Perf:** DB Indexing, Caching strategy.
+- **Final Polish:** E2E Testing and Error boundaries.
+
+## 5. INSTRUCTIONS FOR THE AGENT
+1. Await the user's command to start a specific Sprint.
+2. Before writing code, briefly summarize the plan for the current file/module.
+3. Write the code in small, digestible chunks.
+4. Ensure every file has JSDoc headers explaining its purpose.
