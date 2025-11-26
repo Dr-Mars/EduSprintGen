@@ -41,6 +41,41 @@ export const juryRoleEnum = pgEnum("jury_role", [
   "supervisor",
 ]);
 
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "proposal_submitted",
+  "proposal_validated",
+  "proposal_rejected",
+  "defense_scheduled",
+  "defense_cancelled",
+  "evaluation_ready",
+  "evaluation_submitted",
+  "results_available",
+  "system_announcement",
+]);
+
+export const emailDigestEnum = pgEnum("email_digest_frequency", [
+  "daily",
+  "weekly",
+  "never",
+]);
+
+export const recordTypeEnum = pgEnum("record_type", [
+  "pfe_proposal",
+  "defense",
+  "report",
+  "evaluation",
+]);
+
+export const actionTypeEnum = pgEnum("action_type", [
+  "create",
+  "update",
+  "delete",
+  "approve",
+  "reject",
+  "schedule",
+  "cancel",
+]);
+
 // Tables
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -163,6 +198,59 @@ export const evaluations = pgTable("evaluations", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  type: notificationTypeEnum("type").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  relatedId: varchar("related_id", { length: 255 }),
+  isRead: boolean("is_read").notNull().default(false),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().unique().references(() => users.id),
+  emailOnProposalSubmitted: boolean("email_on_proposal_submitted").default(true),
+  emailOnProposalValidated: boolean("email_on_proposal_validated").default(true),
+  emailOnDefenseScheduled: boolean("email_on_defense_scheduled").default(true),
+  emailOnEvaluationReady: boolean("email_on_evaluation_ready").default(true),
+  emailDigestFrequency: emailDigestEnum("email_digest_frequency").default("daily"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const archiveRecords = pgTable("archive_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recordType: recordTypeEnum("record_type").notNull(),
+  recordId: varchar("record_id", { length: 255 }).notNull(),
+  recordData: text("record_data").notNull(),
+  archivedAt: timestamp("archived_at").notNull().defaultNow(),
+  archivedBy: uuid("archived_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const systemSettings = pgTable("system_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  action: actionTypeEnum("action").notNull(),
+  resourceType: varchar("resource_type", { length: 50 }).notNull(),
+  resourceId: varchar("resource_id", { length: 255 }),
+  changes: text("changes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   pfeProposalsAsStudent: many(pfeProposals, { relationName: "studentProposals" }),
@@ -247,6 +335,34 @@ export const evaluationsRelations = relations(evaluations, ({ one }) => ({
   }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [notificationPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const archiveRecordsRelations = relations(archiveRecords, ({ one }) => ({
+  archivedByUser: one(users, {
+    fields: [archiveRecords.archivedBy],
+    references: [users.id],
+  }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogs.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -298,6 +414,33 @@ export const insertAcademicYearSchema = createInsertSchema(academicYears).omit({
   createdAt: true,
 });
 
+// Sprint 5 Insert Schemas
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertArchiveRecordSchema = createInsertSchema(archiveRecords).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -325,6 +468,22 @@ export type Specialty = typeof specialties.$inferSelect;
 
 export type InsertAcademicYear = z.infer<typeof insertAcademicYearSchema>;
 export type AcademicYear = typeof academicYears.$inferSelect;
+
+// Sprint 5 Types
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+
+export type InsertArchiveRecord = z.infer<typeof insertArchiveRecordSchema>;
+export type ArchiveRecord = typeof archiveRecords.$inferSelect;
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
 
 // Login schema
 export const loginSchema = z.object({
