@@ -1,37 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Download, Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, Download, Clock, AlertCircle, CheckCircle2, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface Report {
   id: string;
+  pfeProposalId: string;
   type: string;
   version: number;
   fileName: string;
-  fileSize: number;
-  uploadedAt: string;
+  fileSize?: number;
+  uploadedAt?: string;
+  createdAt?: string;
   plagiarismScore?: number;
+  plagiarismAnalyzedAt?: string;
   comments?: string;
 }
 
 interface ReportsPageProps {
-  reports?: Report[];
-  onUpload?: (file: File, type: string) => Promise<void>;
-  onDownload?: (id: string) => void;
-  isLoading?: boolean;
+  proposalId?: string;
+  user?: { id: string; role: string };
 }
 
-export default function ReportsPage({ reports = [], onUpload, onDownload, isLoading }: ReportsPageProps) {
+export default function ReportsPage({ proposalId: initialProposalId, user }: ReportsPageProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [reportType, setReportType] = useState<string>("");
-  const [isUploading, setIsUploading] = useState(false);
+  const [reportType, setReportType] = useState<string>("midterm");
   const [dragActive, setDragActive] = useState(false);
+  const { toast } = useToast();
+  
+  // Fetch student's proposal if not provided
+  const { data: proposals = [] } = useQuery({
+    queryKey: ["/api/proposals"],
+  });
+  
+  const studentProposal = proposals[0]; // Get first proposal (student only has one)
+  const proposalId = initialProposalId || studentProposal?.id;
+  
+  // Fetch reports for the proposal
+  const { data: reports = [], isLoading, refetch } = useQuery({
+    queryKey: proposalId ? ["/api/proposals", proposalId, "reports"] : ["reports"],
+    enabled: !!proposalId,
+  });
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -62,17 +79,42 @@ export default function ReportsPage({ reports = [], onUpload, onDownload, isLoad
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile || !reportType) return;
-    
-    setIsUploading(true);
-    try {
-      await onUpload?.(selectedFile, reportType);
+  // Upload report mutation
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedFile || !proposalId) throw new Error("Fichier ou proposition manquante");
+      const mockFileUrl = `https://example.com/reports/${selectedFile.name}`;
+      const response = await apiRequest("POST", "/api/reports", {
+        pfeProposalId: proposalId,
+        type: reportType,
+        fileUrl: mockFileUrl,
+        fileName: selectedFile.name,
+        fileSize: selectedFile.size,
+        uploadedById: user?.id || "",
+        version: (reports.length || 0) + 1,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
       setSelectedFile(null);
-      setReportType("");
-    } finally {
-      setIsUploading(false);
-    }
+      setReportType("midterm");
+      toast({
+        title: "Rapport uploadé",
+        description: "Analyse de plagiat en cours...",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible d'uploader le rapport",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpload = async () => {
+    uploadMutation.mutate();
   };
 
   const formatFileSize = (bytes: number) => {
@@ -81,11 +123,26 @@ export default function ReportsPage({ reports = [], onUpload, onDownload, isLoad
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  // Recheck plagiarism mutation
+  const recheckMutation = useMutation({
+    mutationFn: async (reportId: string) => {
+      const response = await apiRequest("PATCH", `/api/reports/${reportId}/plagiarism`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({
+        title: "Vérification terminée",
+        description: "Les résultats ont été mis à jour",
+      });
+    },
+  });
+
   const getPlagiarismStatus = (score?: number) => {
-    if (!score) return null;
-    if (score < 20) return { color: "text-green-600", label: "Excellent", bg: "bg-green-50" };
-    if (score < 40) return { color: "text-yellow-600", label: "Acceptable", bg: "bg-yellow-50" };
-    return { color: "text-red-600", label: "Attention requise", bg: "bg-red-50" };
+    if (score === undefined && score !== 0) return null;
+    if (score < 30) return { color: "text-green-600", label: "Faible", bg: "bg-green-50", badge: "default" };
+    if (score < 70) return { color: "text-yellow-600", label: "Moyen", bg: "bg-yellow-50", badge: "secondary" };
+    return { color: "text-red-600", label: "Élevé", bg: "bg-red-50", badge: "destructive" };
   };
 
   return (
@@ -163,11 +220,11 @@ export default function ReportsPage({ reports = [], onUpload, onDownload, isLoad
 
           <Button
             onClick={handleUpload}
-            disabled={!selectedFile || !reportType || isUploading}
+            disabled={!selectedFile || !reportType || uploadMutation.isPending || !proposalId}
             className="w-full"
             data-testid="button-upload"
           >
-            {isUploading ? (
+            {uploadMutation.isPending ? (
               <>
                 <Clock className="w-4 h-4 mr-2 animate-spin" />
                 Upload en cours...
@@ -237,18 +294,27 @@ export default function ReportsPage({ reports = [], onUpload, onDownload, isLoad
                           Télécharger
                         </Button>
                       </div>
-                      {report.plagiarismScore !== undefined && plagiarismStatus && (
+                      {plagiarismStatus ? (
                         <div className={`flex items-center gap-2 p-2 rounded-md ${plagiarismStatus.bg} mt-2`}>
-                          {report.plagiarismScore < 40 ? (
+                          {report.plagiarismScore !== undefined && report.plagiarismScore < 70 ? (
                             <CheckCircle2 className={`w-4 h-4 ${plagiarismStatus.color}`} />
                           ) : (
                             <AlertCircle className={`w-4 h-4 ${plagiarismStatus.color}`} />
                           )}
                           <span className={`text-xs font-medium ${plagiarismStatus.color}`}>
-                            Analyse plagiat: {report.plagiarismScore}% - {plagiarismStatus.label}
+                            Plagiat: {report.plagiarismScore ?? "Analyse..."} {report.plagiarismScore !== undefined ? `% - ${plagiarismStatus.label}` : ""}
                           </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="ml-auto h-6 w-6 p-0"
+                            onClick={() => recheckMutation.mutate(report.id)}
+                            data-testid={`button-recheck-${report.id}`}
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
                         </div>
-                      )}
+                      ) : null}
                       {report.comments && (
                         <Alert className="mt-2">
                           <AlertDescription className="text-xs">
