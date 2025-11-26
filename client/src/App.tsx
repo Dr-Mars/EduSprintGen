@@ -1,169 +1,74 @@
+import { Switch, Route } from "wouter";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
+import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/login";
+import Dashboard from "@/pages/dashboard";
+import ProposalForm from "@/pages/proposal-form";
+import ProposalsList from "@/pages/proposals-list";
+import ReportsPage from "@/pages/reports";
+import DefensesPage from "@/pages/defenses";
+import UsersManagement from "@/pages/users-management";
+import DefenseSchedulingPage from "@/pages/defense-scheduling";
+import JuryManagementPage from "@/pages/jury-management";
+import DefenseEvaluationPage from "@/pages/defense-evaluation";
+import DefenseResultsPage from "@/pages/defense-results";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 
-const MENTION_COLORS: { [key: string]: string } = {
-  "Excellent": "bg-green-100 text-green-800",
-  "Très Bien": "bg-blue-100 text-blue-800",
-  "Bien": "bg-cyan-100 text-cyan-800",
-  "Assez Bien": "bg-yellow-100 text-yellow-800",
-  "Passable": "bg-orange-100 text-orange-800",
-  "Non admis": "bg-red-100 text-red-800",
-};
+function Router() {
+  return (
+    <Switch>
+      <Route path="/" component={() => <Dashboard />} />
+      <Route path="/dashboard" component={() => <Dashboard />} />
+      <Route path="/my-proposal" component={() => <ProposalForm specialties={[]} />} />
+      <Route path="/proposals" component={() => <ProposalsList />} />
+      <Route path="/my-reports" component={() => <ReportsPage />} />
+      <Route path="/defenses" component={() => <DefensesPage />} />
+      <Route path="/defense-scheduling" component={() => <DefenseSchedulingPage />} />
+      <Route path="/jury-management" component={() => <JuryManagementPage />} />
+      <Route path="/defense-evaluation/:defenseId" component={() => <DefenseEvaluationPage />} />
+      <Route path="/defense-results/:defenseId" component={() => <DefenseResultsPage />} />
+      <Route path="/users" component={() => <UsersManagement />} />
+      <Route path="/supervisions" component={() => <Dashboard />} />
+      <Route path="/jury-defenses" component={() => <DefensesPage />} />
+      <Route path="/assignments" component={() => <ProposalsList />} />
+      <Route path="/management" component={() => <Dashboard />} />
+      <Route path="/admin" component={() => <UsersManagement />} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
 
-export default function DefenseResultsPage() {
-  const { defenseId } = useParams();
-
-  const { data: results, isLoading } = useQuery({
-    queryKey: ["/api/defenses", defenseId, "results"],
-    enabled: !!defenseId,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-48" />
-        {[...Array(4)].map((_, i) => (
-          <Skeleton key={i} className="h-32 w-full" />
-        ))}
-      </div>
-    );
-  }
-
-  if (!results) {
-    return (
-      <div className="text-center py-12">
-        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-        <p className="text-lg font-medium">Résultats non trouvés</p>
-      </div>
-    );
-  }
-
-  const { defense, evaluations, juryMembers } = results;
-  const isMention = (mention: string) => Object.keys(MENTION_COLORS).includes(mention);
+export default function App() {
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-results-title">
-          Résultats de la soutenance
-        </h1>
-        <p className="text-muted-foreground">Consulter les scores et l'évaluation finale</p>
-      </div>
-
-      {defense.status === "completed" ? (
-        <>
-          {/* FINAL SCORE CARD */}
-          <Card className="border-2 border-primary">
-            <CardHeader>
-              <CardTitle className="text-center text-4xl text-primary">
-                {defense.finalScore}/20
-              </CardTitle>
-              <CardDescription className="text-center">
-                <Badge className={`text-lg px-4 py-2 mt-2 ${MENTION_COLORS[defense.mention] || ""}`}>
-                  {defense.mention}
-                </Badge>
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          {/* COMPONENT SCORES */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Rapport</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-primary mb-2">{defense.reportScore}/20</p>
-                <Progress value={(defense.reportScore / 20) * 100} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-2">Poids: 30%</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Présentation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-primary mb-2">{defense.presentationScore}/20</p>
-                <Progress value={(defense.presentationScore / 20) * 100} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-2">Poids: 40%</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Entreprise</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-primary mb-2">{defense.companyScore}/20</p>
-                <Progress value={(defense.companyScore / 20) * 100} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-2">Poids: 30%</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* JURY MEMBERS & COMMENTS */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Jury et retours</CardTitle>
-              <CardDescription>{juryMembers.length} membres du jury</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {juryMembers.map((member: any) => (
-                  <div key={member.id} className="border-l-4 border-primary pl-4 py-2">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium text-foreground">
-                        {member.user?.firstName} {member.user?.lastName}
-                      </p>
-                      <Badge variant="secondary" className="text-xs">
-                        {member.role}
-                      </Badge>
-                    </div>
-                    {evaluations.filter((e: any) => e.juryMemberId === member.id).map((eval: any) => (
-                      <p key={eval.id} className="text-sm text-muted-foreground">
-                        {eval.comments || "Pas de commentaire"}
-                      </p>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI FEEDBACK IF AVAILABLE */}
-          {evaluations.some((e: any) => e.criteriaName === "ai_feedback_summary") && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  Retours de synthèse
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground whitespace-pre-line">
-                  {evaluations.find((e: any) => e.criteriaName === "ai_feedback_summary")?.comments}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </>
-      ) : (
-        <Card>
-          <CardContent className="py-8">
-            <div className="text-center">
-              <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">La soutenance n'est pas encore complétée</p>
-              <p className="text-sm text-muted-foreground mt-1">Statut: {defense.status}</p>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <SidebarProvider style={style as React.CSSProperties}>
+          <div className="flex h-screen w-full">
+            <AppSidebar />
+            <div className="flex flex-col flex-1">
+              <header className="flex items-center justify-between p-4 border-b">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+                <ThemeToggle />
+              </header>
+              <main className="flex-1 overflow-auto p-6">
+                <Router />
+              </main>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          </div>
+        </SidebarProvider>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
