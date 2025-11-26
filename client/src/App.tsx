@@ -1,138 +1,169 @@
-import { useState, useEffect } from "react";
-import { Switch, Route, useLocation } from "wouter";
-import { queryClient, apiRequest } from "./lib/queryClient";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import NotFound from "@/pages/not-found";
-import LoginPage from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import ProposalForm from "@/pages/proposal-form";
-import ProposalsList from "@/pages/proposals-list";
-import ReportsPage from "@/pages/reports";
-import DefensesPage from "@/pages/defenses";
-import UsersManagement from "@/pages/users-management";
-import type { LoginCredentials, User } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { useParams } from "wouter";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
-function Router() {
-  const [, setLocation] = useLocation();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const { toast } = useToast();
+const MENTION_COLORS: { [key: string]: string } = {
+  "Excellent": "bg-green-100 text-green-800",
+  "Très Bien": "bg-blue-100 text-blue-800",
+  "Bien": "bg-cyan-100 text-cyan-800",
+  "Assez Bien": "bg-yellow-100 text-yellow-800",
+  "Passable": "bg-orange-100 text-orange-800",
+  "Non admis": "bg-red-100 text-red-800",
+};
 
-  // Fetch specialties for the proposal form
-  const { data: specialtiesData = [] } = useQuery({
-    queryKey: ["/api/specialties"],
-    enabled: !!currentUser,
+export default function DefenseResultsPage() {
+  const { defenseId } = useParams();
+
+  const { data: results, isLoading } = useQuery({
+    queryKey: ["/api/defenses", defenseId, "results"],
+    enabled: !!defenseId,
   });
 
-  // Ensure specialties is always an array of objects with id and name
-  const specialties = Array.isArray(specialtiesData) 
-    ? specialtiesData.map((s: any) => ({ id: s.id, name: s.name }))
-    : [];
-
-  const handleLogin = async (credentials: LoginCredentials) => {
-    try {
-      const response = await apiRequest("POST", "/api/auth/login", credentials);
-      const data = await response.json();
-      if (!data.user) {
-        throw new Error("Réponse invalide du serveur");
-      }
-      setCurrentUser(data.user);
-      setLocation("/dashboard");
-      toast({
-        title: "Connexion réussie",
-        description: `Bienvenue ${data.user.firstName} !`,
-      });
-    } catch (error: any) {
-      toast({
-        title: "Erreur de connexion",
-        description: error.message || "Email ou mot de passe incorrect",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/auth/logout", {});
-      await response.json();
-      setCurrentUser(null);
-      queryClient.clear();
-      setLocation("/");
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt !",
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
-  // Check if user is authenticated
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        {[...Array(4)].map((_, i) => (
+          <Skeleton key={i} className="h-32 w-full" />
+        ))}
+      </div>
+    );
   }
 
-  return (
-    <SidebarProvider
-      style={{
-        "--sidebar-width": "20rem",
-        "--sidebar-width-icon": "4rem",
-      } as React.CSSProperties}
-    >
-      <div className="flex h-screen w-full">
-        <AppSidebar user={{
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-          email: currentUser.email,
-          role: currentUser.role,
-          photoUrl: currentUser.photoUrl || undefined,
-        }} onLogout={handleLogout} />
-        <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between p-4 border-b bg-card">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                Bienvenue, {currentUser.firstName}
-              </span>
-            </div>
-          </header>
-          <main className="flex-1 overflow-auto p-6 md:p-8">
-            <Switch>
-              <Route path="/" component={() => <Dashboard user={currentUser} />} />
-              <Route path="/dashboard" component={() => <Dashboard user={currentUser} />} />
-              <Route path="/my-proposal" component={() => <ProposalForm specialties={specialties} />} />
-              <Route path="/proposals" component={() => <ProposalsList />} />
-              <Route path="/my-reports" component={() => <ReportsPage />} />
-              <Route path="/defenses" component={() => <DefensesPage />} />
-              <Route path="/users" component={() => <UsersManagement />} />
-              <Route path="/supervisions" component={() => <Dashboard user={currentUser} />} />
-              <Route path="/jury-defenses" component={() => <DefensesPage />} />
-              <Route path="/assignments" component={() => <ProposalsList />} />
-              <Route path="/management" component={() => <Dashboard user={currentUser} />} />
-              <Route path="/admin" component={() => <UsersManagement />} />
-              <Route component={NotFound} />
-            </Switch>
-          </main>
-        </div>
+  if (!results) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <p className="text-lg font-medium">Résultats non trouvés</p>
       </div>
-    </SidebarProvider>
-  );
-}
+    );
+  }
 
-function App() {
+  const { defense, evaluations, juryMembers } = results;
+  const isMention = (mention: string) => Object.keys(MENTION_COLORS).includes(mention);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="text-results-title">
+          Résultats de la soutenance
+        </h1>
+        <p className="text-muted-foreground">Consulter les scores et l'évaluation finale</p>
+      </div>
+
+      {defense.status === "completed" ? (
+        <>
+          {/* FINAL SCORE CARD */}
+          <Card className="border-2 border-primary">
+            <CardHeader>
+              <CardTitle className="text-center text-4xl text-primary">
+                {defense.finalScore}/20
+              </CardTitle>
+              <CardDescription className="text-center">
+                <Badge className={`text-lg px-4 py-2 mt-2 ${MENTION_COLORS[defense.mention] || ""}`}>
+                  {defense.mention}
+                </Badge>
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          {/* COMPONENT SCORES */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Rapport</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-primary mb-2">{defense.reportScore}/20</p>
+                <Progress value={(defense.reportScore / 20) * 100} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">Poids: 30%</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Présentation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-primary mb-2">{defense.presentationScore}/20</p>
+                <Progress value={(defense.presentationScore / 20) * 100} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">Poids: 40%</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Entreprise</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-primary mb-2">{defense.companyScore}/20</p>
+                <Progress value={(defense.companyScore / 20) * 100} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">Poids: 30%</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* JURY MEMBERS & COMMENTS */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Jury et retours</CardTitle>
+              <CardDescription>{juryMembers.length} membres du jury</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {juryMembers.map((member: any) => (
+                  <div key={member.id} className="border-l-4 border-primary pl-4 py-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-foreground">
+                        {member.user?.firstName} {member.user?.lastName}
+                      </p>
+                      <Badge variant="secondary" className="text-xs">
+                        {member.role}
+                      </Badge>
+                    </div>
+                    {evaluations.filter((e: any) => e.juryMemberId === member.id).map((eval: any) => (
+                      <p key={eval.id} className="text-sm text-muted-foreground">
+                        {eval.comments || "Pas de commentaire"}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI FEEDBACK IF AVAILABLE */}
+          {evaluations.some((e: any) => e.criteriaName === "ai_feedback_summary") && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  Retours de synthèse
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-foreground whitespace-pre-line">
+                  {evaluations.find((e: any) => e.criteriaName === "ai_feedback_summary")?.comments}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      ) : (
+        <Card>
+          <CardContent className="py-8">
+            <div className="text-center">
+              <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">La soutenance n'est pas encore complétée</p>
+              <p className="text-sm text-muted-foreground mt-1">Statut: {defense.status}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
-
-export default App;
