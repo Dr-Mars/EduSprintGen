@@ -96,13 +96,13 @@ export class GradingService {
     const allCriteria = Object.values(EVALUATION_CRITERIA).flat();
 
     // Validate each evaluation
-    for (const eval of evaluations) {
-      const criteria = allCriteria.find((c) => c.name === eval.criteriaName);
+    for (const evaluation of evaluations) {
+      const criteria = allCriteria.find((c) => c.name === evaluation.criteriaName);
       if (!criteria) {
-        throw new Error(`Critère invalide: ${eval.criteriaName}`);
+        throw new Error(`Critère invalide: ${evaluation.criteriaName}`);
       }
 
-      if (eval.score < 0 || eval.score > criteria.maxScore) {
+      if (evaluation.score < 0 || evaluation.score > criteria.maxScore) {
         throw new Error(
           `Score invalide pour ${criteria.label}: doit être entre 0 et ${criteria.maxScore}`
         );
@@ -113,7 +113,7 @@ export class GradingService {
       const duplicate = existing.find(
         (e: any) =>
           e.juryMemberId === juryMemberId &&
-          e.criteriaName === eval.criteriaName
+          e.criteriaName === evaluation.criteriaName
       );
       if (duplicate) {
         throw new Error(
@@ -125,10 +125,10 @@ export class GradingService {
       await storage.createEvaluation({
         defenseId,
         juryMemberId,
-        criteriaName: eval.criteriaName,
-        score: eval.score,
+        criteriaName: evaluation.criteriaName,
+        score: evaluation.score,
         maxScore: criteria.maxScore,
-        comments: eval.comments || "",
+        comments: evaluation.comments || "",
       });
     }
 
@@ -179,11 +179,11 @@ export class GradingService {
     // Group evaluations by criteria
     const scoreByCriteria: { [key: string]: number[] } = {};
 
-    for (const eval of evaluations) {
-      if (!scoreByCriteria[eval.criteriaName]) {
-        scoreByCriteria[eval.criteriaName] = [];
+    for (const evaluation of evaluations) {
+      if (!scoreByCriteria[evaluation.criteriaName]) {
+        scoreByCriteria[evaluation.criteriaName] = [];
       }
-      scoreByCriteria[eval.criteriaName].push(eval.score);
+      scoreByCriteria[evaluation.criteriaName].push(evaluation.score);
     }
 
     // Calculate component totals (average across jury members)
