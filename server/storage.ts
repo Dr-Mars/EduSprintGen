@@ -8,6 +8,11 @@ import {
   companies,
   specialties,
   academicYears,
+  notifications,
+  notificationPreferences,
+  archiveRecords,
+  systemSettings,
+  auditLogs,
   type User,
   type InsertUser,
   type PfeProposal,
@@ -26,6 +31,16 @@ import {
   type InsertSpecialty,
   type AcademicYear,
   type InsertAcademicYear,
+  type Notification,
+  type InsertNotification,
+  type NotificationPreference,
+  type InsertNotificationPreference,
+  type ArchiveRecord,
+  type InsertArchiveRecord,
+  type SystemSetting,
+  type InsertSystemSetting,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -81,6 +96,35 @@ export interface IStorage {
   listAcademicYears(): Promise<AcademicYear[]>;
   getActiveAcademicYear(): Promise<AcademicYear | undefined>;
   createAcademicYear(year: InsertAcademicYear): Promise<AcademicYear>;
+
+  // Sprint 5: Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: string, limit?: number): Promise<Notification[]>;
+  markNotificationAsRead(notificationId: string): Promise<Notification | undefined>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
+  deleteNotification(notificationId: string): Promise<void>;
+  getUnreadCount(userId: string): Promise<number>;
+
+  // Sprint 5: Notification Preferences
+  getNotificationPreferences(userId: string): Promise<NotificationPreference | undefined>;
+  createNotificationPreferences(prefs: InsertNotificationPreference): Promise<NotificationPreference>;
+  updateNotificationPreferences(userId: string, prefs: Partial<InsertNotificationPreference>): Promise<NotificationPreference | undefined>;
+
+  // Sprint 5: Archive Records
+  createArchiveRecord(archive: InsertArchiveRecord): Promise<ArchiveRecord>;
+  listArchiveRecords(filters?: { recordType?: string; recordId?: string; limit?: number; offset?: number }): Promise<ArchiveRecord[]>;
+  getArchiveRecord(id: string): Promise<ArchiveRecord | undefined>;
+  deleteArchiveRecord(id: string): Promise<void>;
+
+  // Sprint 5: System Settings
+  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+  getAllSystemSettings(category?: string): Promise<SystemSetting[]>;
+  updateSystemSetting(key: string, value: string): Promise<SystemSetting>;
+  deleteSystemSetting(key: string): Promise<void>;
+
+  // Sprint 5: Audit Logs
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  listAuditLogs(filters?: { userId?: string; resourceType?: string; limit?: number; offset?: number }): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -370,6 +414,169 @@ export class DatabaseStorage implements IStorage {
   async createAcademicYear(year: InsertAcademicYear): Promise<AcademicYear> {
     const [created] = await db.insert(academicYears).values(year).returning();
     return created;
+  }
+
+  // Sprint 5: Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [created] = await db.insert(notifications).values(notification).returning();
+    return created;
+  }
+
+  async getUserNotifications(userId: string, limit: number = 20): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(limit);
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<Notification | undefined> {
+    const [updated] = await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(notifications.id, notificationId))
+      .returning();
+    return updated || undefined;
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  }
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    await db.delete(notifications).where(eq(notifications.id, notificationId));
+  }
+
+  async getUnreadCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    return result[0]?.count || 0;
+  }
+
+  // Sprint 5: Notification Preferences
+  async getNotificationPreferences(userId: string): Promise<NotificationPreference | undefined> {
+    const [prefs] = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId));
+    return prefs || undefined;
+  }
+
+  async createNotificationPreferences(prefs: InsertNotificationPreference): Promise<NotificationPreference> {
+    const [created] = await db.insert(notificationPreferences).values(prefs).returning();
+    return created;
+  }
+
+  async updateNotificationPreferences(userId: string, prefs: Partial<InsertNotificationPreference>): Promise<NotificationPreference | undefined> {
+    const [updated] = await db
+      .update(notificationPreferences)
+      .set({ ...prefs, updatedAt: new Date() })
+      .where(eq(notificationPreferences.userId, userId))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Sprint 5: Archive Records
+  async createArchiveRecord(archive: InsertArchiveRecord): Promise<ArchiveRecord> {
+    const [created] = await db.insert(archiveRecords).values(archive).returning();
+    return created;
+  }
+
+  async listArchiveRecords(filters?: { recordType?: string; recordId?: string; limit?: number; offset?: number }): Promise<ArchiveRecord[]> {
+    let query = db.select().from(archiveRecords);
+    
+    if (filters?.recordType) {
+      query = query.where(eq(archiveRecords.recordType, filters.recordType));
+    }
+    if (filters?.recordId) {
+      query = query.where(eq(archiveRecords.recordId, filters.recordId));
+    }
+    
+    query = query.orderBy(desc(archiveRecords.archivedAt));
+    
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.offset(filters.offset);
+    }
+    
+    return query;
+  }
+
+  async getArchiveRecord(id: string): Promise<ArchiveRecord | undefined> {
+    const [record] = await db.select().from(archiveRecords).where(eq(archiveRecords.id, id));
+    return record || undefined;
+  }
+
+  async deleteArchiveRecord(id: string): Promise<void> {
+    await db.delete(archiveRecords).where(eq(archiveRecords.id, id));
+  }
+
+  // Sprint 5: System Settings
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting || undefined;
+  }
+
+  async getAllSystemSettings(category?: string): Promise<SystemSetting[]> {
+    if (category) {
+      return db.select().from(systemSettings).where(eq(systemSettings.category, category));
+    }
+    return db.select().from(systemSettings);
+  }
+
+  async updateSystemSetting(key: string, value: string): Promise<SystemSetting> {
+    const [updated] = await db
+      .update(systemSettings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(systemSettings.key, key))
+      .returning();
+    
+    if (!updated) {
+      const [created] = await db.insert(systemSettings).values({ key, value, category: "general" }).returning();
+      return created;
+    }
+    
+    return updated;
+  }
+
+  async deleteSystemSetting(key: string): Promise<void> {
+    await db.delete(systemSettings).where(eq(systemSettings.key, key));
+  }
+
+  // Sprint 5: Audit Logs
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [created] = await db.insert(auditLogs).values(log).returning();
+    return created;
+  }
+
+  async listAuditLogs(filters?: { userId?: string; resourceType?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs);
+    
+    if (filters?.userId) {
+      query = query.where(eq(auditLogs.userId, filters.userId));
+    }
+    if (filters?.resourceType) {
+      query = query.where(eq(auditLogs.resourceType, filters.resourceType));
+    }
+    
+    query = query.orderBy(desc(auditLogs.createdAt));
+    
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+    if (filters?.offset) {
+      query = query.offset(filters.offset);
+    }
+    
+    return query;
   }
 }
 
