@@ -13,6 +13,7 @@ import {
   archiveRecords,
   systemSettings,
   auditLogs,
+  passwordResetTokens,
   type User,
   type InsertUser,
   type PfeProposal,
@@ -41,6 +42,8 @@ import {
   type InsertSystemSetting,
   type AuditLog,
   type InsertAuditLog,
+  type PasswordResetToken,
+  type InsertPasswordResetToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -125,6 +128,11 @@ export interface IStorage {
   // Sprint 5: Audit Logs
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   listAuditLogs(filters?: { userId?: string; resourceType?: string; limit?: number; offset?: number }): Promise<AuditLog[]>;
+
+  // Sprint 6: Password Reset
+  createPasswordResetToken(token: InsertPasswordResetToken): Promise<PasswordResetToken>;
+  getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined>;
+  deletePasswordResetToken(token: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {

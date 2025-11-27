@@ -159,6 +159,7 @@ export const reports = pgTable("reports", {
   comments: text("comments"),
   plagiarismScore: integer("plagiarism_score"), // 0-100
   plagiarismAnalyzedAt: timestamp("plagiarism_analyzed_at"),
+  watermarkAppliedAt: timestamp("watermark_applied_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -248,6 +249,15 @@ export const auditLogs = pgTable("audit_logs", {
   resourceType: varchar("resource_type", { length: 50 }).notNull(),
   resourceId: varchar("resource_id", { length: 255 }),
   changes: text("changes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Password Reset Tokens Table
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -363,6 +373,13 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -441,6 +458,11 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -485,6 +507,9 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 
+export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
 // Login schema
 export const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -494,8 +519,14 @@ export const loginSchema = z.object({
 export type LoginCredentials = z.infer<typeof loginSchema>;
 
 // Password reset schema
-export const resetPasswordSchema = z.object({
+export const forgotPasswordSchema = z.object({
   email: z.string().email("Email invalide"),
 });
 
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token requis"),
+  newPassword: z.string().min(8, "Minimum 8 caractères"),
+});
+
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
