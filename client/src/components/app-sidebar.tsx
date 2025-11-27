@@ -1,4 +1,4 @@
-import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut } from "lucide-react";
+import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut, BarChart3, Bell, Archive, Lock } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -59,7 +59,12 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
       { title: "Propositions PFE", url: "/proposals", icon: FileText },
       { title: "Utilisateurs", url: "/users", icon: Users },
       { title: "Soutenances", url: "/defenses", icon: Calendar },
-      { title: "Administration", url: "/admin", icon: Settings },
+      { title: "Admin Dashboard", url: "/admin-dashboard", icon: BarChart3 },
+      { title: "Analytics", url: "/admin-analytics", icon: BarChart3 },
+      { title: "Notifications", url: "/notifications", icon: Bell },
+      { title: "Utilisateurs Admin", url: "/admin-users", icon: Lock },
+      { title: "Paramètres", url: "/admin-settings", icon: Settings },
+      { title: "Archives", url: "/admin-archives", icon: Archive },
     ],
     company_supervisor: [
       { title: "Tableau de bord", url: "/dashboard", icon: Home },
