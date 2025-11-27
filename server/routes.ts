@@ -410,6 +410,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const report = await storage.createReport(reportData);
       
+      // Apply PDF watermarking
+      try {
+        const proposal = await storage.getPfeProposal(reportData.pfeProposalId);
+        if (proposal && reportData.fileUrl && reportData.fileName) {
+          const outputPath = reportData.fileUrl.replace('.pdf', '-watermarked.pdf');
+          await pdfWatermarkService.addWatermarkToPDF(
+            reportData.fileUrl,
+            outputPath,
+            proposal.student.id,
+            `${proposal.student.firstName} ${proposal.student.lastName}`,
+            new Date()
+          );
+          
+          // Update report with watermarked file URL and timestamp
+          await storage.updateReport(report.id, {
+            fileUrl: outputPath,
+            watermarkAppliedAt: new Date(),
+          });
+        }
+      } catch (watermarkError) {
+        console.warn("Watermarking warning (continuing without watermark):", watermarkError);
+      }
+      
       // Run plagiarism detection
       const { detectPlagiarism } = await import("./plagiarism-detection");
       const { score: plagiarismScore } = await detectPlagiarism(
