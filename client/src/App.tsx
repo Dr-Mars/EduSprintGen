@@ -63,7 +63,7 @@ export default function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await apiRequest("/api/auth/me", "GET");
+        const response = await apiRequest("GET", "/api/auth/me");
         setUser(response);
         setIsAuthenticated(true);
       } catch (error) {
@@ -75,7 +75,7 @@ export default function App() {
 
   const handleLogin = async (credentials: any) => {
     try {
-      const response = await apiRequest("/api/auth/login", "POST", credentials);
+      const response = await apiRequest("POST", "/api/auth/login", credentials);
       setUser(response);
       setIsAuthenticated(true);
     } catch (error) {
@@ -86,7 +86,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await apiRequest("/api/auth/logout", "POST");
+      await apiRequest("POST", "/api/auth/logout");
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
