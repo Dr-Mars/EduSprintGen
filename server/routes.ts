@@ -17,6 +17,8 @@ import {
   insertArchiveRecordSchema,
   insertSystemSettingSchema,
   insertAuditLogSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
@@ -35,6 +37,8 @@ import { notificationPreferenceService } from "./notification-preference-service
 import { analyticsService } from "./analytics-service";
 import { archiveService } from "./archive-service";
 import { settingsService } from "./settings-service";
+import { passwordResetService } from "./password-reset-service";
+import { pdfWatermarkService } from "./pdf-watermark-service";
 
 // Middleware for authentication (simplified - in production would use JWT)
 const authMiddleware = (req: Request, res: Response, next: Function) => {
@@ -94,6 +98,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For now, return mock data or require userId in query
       res.json({ user: null });
     } catch (error) {
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Forgot Password
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = forgotPasswordSchema.parse(req.body);
+      
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Return success even if user not found (security best practice)
+        return res.json({ success: true, message: "Si cet email existe, vous recevrez un lien de réinitialisation" });
+      }
+
+      const resetToken = await passwordResetService.generateResetToken(user.id);
+      const resetLink = passwordResetService.generateResetLink(resetToken);
+      
+      // TODO: Send email with reset link (integrate email service)
+      console.log(`Password reset link for ${email}: ${resetLink}`);
+      
+      res.json({ success: true, message: "Vérifiez votre email pour le lien de réinitialisation" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Email invalide" });
+      }
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Reset Password
+  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = resetPasswordSchema.parse(req.body);
+      
+      const success = await passwordResetService.resetPassword(token, newPassword);
+      
+      if (!success) {
+        return res.status(401).json({ error: "Lien de réinitialisation invalide ou expiré" });
+      }
+
+      res.json({ success: true, message: "Mot de passe réinitialisé avec succès" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Erreur serveur" });
+    }
+  });
+
+  // Verify Reset Token
+  app.get("/api/auth/verify-reset-token/:token", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const result = await passwordResetService.verifyResetToken(token);
+      
+      if (!result) {
+        return res.status(401).json({ error: "Lien de réinitialisation invalide ou expiré" });
+      }
+
+      res.json({ valid: true });
+    } catch (error) {
+      console.error("Verify token error:", error);
       res.status(500).json({ error: "Erreur serveur" });
     }
   });
