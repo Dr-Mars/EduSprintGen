@@ -17,6 +17,12 @@ import DefenseSchedulingPage from "@/pages/defense-scheduling";
 import JuryManagementPage from "@/pages/jury-management";
 import DefenseEvaluationPage from "@/pages/defense-evaluation";
 import DefenseResultsPage from "@/pages/defense-results";
+import AdminDashboard from "@/pages/admin-dashboard";
+import AdminAnalytics from "@/pages/admin-analytics";
+import NotificationsPage from "@/pages/notifications";
+import AdminSettings from "@/pages/admin-settings";
+import AdminUsers from "@/pages/admin-users";
+import AdminArchives from "@/pages/admin-archives";
 import { useQuery } from "@tanstack/react-query";
 
 function Router() {
@@ -37,7 +43,13 @@ function Router() {
       <Route path="/jury-defenses" component={() => <DefensesPage />} />
       <Route path="/assignments" component={() => <ProposalsList />} />
       <Route path="/management" component={() => <Dashboard />} />
-      <Route path="/admin" component={() => <UsersManagement />} />
+      <Route path="/admin" component={() => <AdminDashboard />} />
+      <Route path="/admin-dashboard" component={() => <AdminDashboard />} />
+      <Route path="/admin-analytics" component={() => <AdminAnalytics />} />
+      <Route path="/notifications" component={() => <NotificationsPage />} />
+      <Route path="/admin-settings" component={() => <AdminSettings />} />
+      <Route path="/admin-users" component={() => <AdminUsers />} />
+      <Route path="/admin-archives" component={() => <AdminArchives />} />
       <Route component={NotFound} />
     </Switch>
   );
