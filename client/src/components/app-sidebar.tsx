@@ -169,26 +169,26 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
                   </div>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+              <DropdownMenuContent align="end" className="w-56 bg-card border border-border shadow-lg">
+                <DropdownMenuLabel className="flex flex-col space-y-1 bg-accent/10 px-2 py-2 rounded">
+                  <p className="text-sm font-semibold text-foreground">{user.firstName} {user.lastName}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild data-testid="menu-item-profile">
-                  <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                <DropdownMenuItem asChild data-testid="menu-item-profile" className="focus:bg-accent/20">
+                  <Link href="/profile" className="flex items-center gap-3 cursor-pointer px-2 py-2 text-foreground hover:text-primary">
                     <User className="w-4 h-4" />
                     <span>Voir mon profil</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild data-testid="menu-item-change-password">
-                  <Link href="/change-password" className="flex items-center gap-2 cursor-pointer">
+                <DropdownMenuItem asChild data-testid="menu-item-change-password" className="focus:bg-accent/20">
+                  <Link href="/change-password" className="flex items-center gap-3 cursor-pointer px-2 py-2 text-foreground hover:text-primary">
                     <Key className="w-4 h-4" />
                     <span>Modifier mot de passe</span>
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild data-testid="menu-item-preferences">
-                  <Link href="/preferences" className="flex items-center gap-2 cursor-pointer">
+                <DropdownMenuItem asChild data-testid="menu-item-preferences" className="focus:bg-accent/20">
+                  <Link href="/preferences" className="flex items-center gap-3 cursor-pointer px-2 py-2 text-foreground hover:text-primary">
                     <Sliders className="w-4 h-4" />
                     <span>Préférences</span>
                   </Link>
@@ -196,8 +196,8 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
                 {user.role === "administrator" && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild data-testid="menu-item-admin-settings">
-                      <Link href="/admin-settings" className="flex items-center gap-2 cursor-pointer">
+                    <DropdownMenuItem asChild data-testid="menu-item-admin-settings" className="focus:bg-accent/20">
+                      <Link href="/admin-settings" className="flex items-center gap-3 cursor-pointer px-2 py-2 text-foreground hover:text-primary">
                         <Settings className="w-4 h-4" />
                         <span>Paramètres système</span>
                       </Link>
@@ -207,7 +207,7 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={onLogout}
-                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950"
+                  className="flex items-center gap-3 cursor-pointer px-2 py-2 text-destructive hover:bg-destructive/20 focus:bg-destructive/20"
                   data-testid="menu-item-logout"
                 >
                   <LogOut className="w-4 h-4" />
