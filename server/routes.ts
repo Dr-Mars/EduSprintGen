@@ -12,6 +12,11 @@ import {
   insertCompanySchema,
   insertSpecialtySchema,
   insertAcademicYearSchema,
+  insertNotificationSchema,
+  insertNotificationPreferenceSchema,
+  insertArchiveRecordSchema,
+  insertSystemSettingSchema,
+  insertAuditLogSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import bcrypt from "bcrypt";
@@ -25,6 +30,11 @@ import { defenseService } from "./defense-service";
 import { juryService } from "./jury-service";
 import { gradingService } from "./grading-service";
 import { geminiFeedbackService } from "./gemini-feedback-service";
+import { notificationService } from "./notification-service";
+import { notificationPreferenceService } from "./notification-preference-service";
+import { analyticsService } from "./analytics-service";
+import { archiveService } from "./archive-service";
+import { settingsService } from "./settings-service";
 
 // Middleware for authentication (simplified - in production would use JWT)
 const authMiddleware = (req: Request, res: Response, next: Function) => {
@@ -801,6 +811,472 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Feedback generation error:", error);
       res.status(500).json({ error: error.message || "Erreur lors de la génération" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: NOTIFICATION ROUTES
+  // ============================================
+
+  // Create notification
+  app.post("/api/notifications", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId, type, title, message, relatedId } = req.body;
+      const notification = await notificationService.createNotification(userId, type, title, message, relatedId);
+      res.status(201).json(notification);
+    } catch (error: any) {
+      console.error("Create notification error:", error);
+      res.status(500).json({ error: "Erreur lors de la création de la notification" });
+    }
+  });
+
+  // Get user notifications
+  app.get("/api/users/:userId/notifications", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const notifications = await notificationService.getUserNotifications(userId, limit);
+      res.json(notifications);
+    } catch (error: any) {
+      console.error("Get notifications error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des notifications" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:notificationId/read", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { notificationId } = req.params;
+      const notification = await notificationService.markNotificationAsRead(notificationId);
+      if (!notification) {
+        return res.status(404).json({ error: "Notification non trouvée" });
+      }
+      res.json(notification);
+    } catch (error: any) {
+      console.error("Mark as read error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch("/api/users/:userId/notifications/read-all", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      await notificationService.markAllNotificationsAsRead(userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Mark all as read error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Delete notification
+  app.delete("/api/notifications/:notificationId", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { notificationId } = req.params;
+      await notificationService.deleteNotification(notificationId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete notification error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
+  // Get unread count
+  app.get("/api/users/:userId/notifications/unread/count", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const count = await notificationService.getUnreadCount(userId);
+      res.json({ count });
+    } catch (error: any) {
+      console.error("Get unread count error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération du compte" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: NOTIFICATION PREFERENCE ROUTES
+  // ============================================
+
+  // Get user notification preferences
+  app.get("/api/users/:userId/notification-preferences", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const preferences = await notificationPreferenceService.getUserPreferences(userId);
+      if (!preferences) {
+        return res.status(404).json({ error: "Préférences non trouvées" });
+      }
+      res.json(preferences);
+    } catch (error: any) {
+      console.error("Get preferences error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des préférences" });
+    }
+  });
+
+  // Update notification preferences
+  app.patch("/api/users/:userId/notification-preferences", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const preferences = await notificationPreferenceService.updatePreferences(userId, req.body);
+      res.json(preferences);
+    } catch (error: any) {
+      console.error("Update preferences error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour des préférences" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: ANALYTICS ROUTES
+  // ============================================
+
+  // Get system statistics
+  app.get("/api/analytics/system-stats", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const stats = await analyticsService.getSystemStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get system stats error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+    }
+  });
+
+  // Get completion rate
+  app.get("/api/analytics/completion-rate", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const rate = await analyticsService.getCompletionRate();
+      res.json(rate);
+    } catch (error: any) {
+      console.error("Get completion rate error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération du taux de complétion" });
+    }
+  });
+
+  // Get average scores
+  app.get("/api/analytics/average-scores", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const scores = await analyticsService.getAverageScores();
+      res.json(scores);
+    } catch (error: any) {
+      console.error("Get average scores error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des moyennes" });
+    }
+  });
+
+  // Get defense statistics
+  app.get("/api/analytics/defense-stats", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const stats = await analyticsService.getDefenseStatistics();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get defense stats error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+    }
+  });
+
+  // Get student progress
+  app.get("/api/analytics/student-progress/:studentId", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { studentId } = req.params;
+      const progress = await analyticsService.getStudentProgress(studentId);
+      res.json(progress);
+    } catch (error: any) {
+      console.error("Get student progress error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération de la progression" });
+    }
+  });
+
+  // Get top performers
+  app.get("/api/analytics/top-performers", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const performers = await analyticsService.getTopPerformers(limit);
+      res.json(performers);
+    } catch (error: any) {
+      console.error("Get top performers error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des meilleurs" });
+    }
+  });
+
+  // Get statistics by specialty
+  app.get("/api/analytics/statistics-by-specialty", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const stats = await analyticsService.getStatisticsBySpecialty();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get specialty stats error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+    }
+  });
+
+  // Get statistics by company
+  app.get("/api/analytics/statistics-by-company", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const stats = await analyticsService.getStatisticsByCompany();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get company stats error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: ARCHIVE ROUTES
+  // ============================================
+
+  // List archives
+  app.get("/api/archives", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const recordType = req.query.recordType as string;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const archives = await archiveService.listArchives({ recordType, limit, offset });
+      res.json(archives);
+    } catch (error: any) {
+      console.error("List archives error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des archives" });
+    }
+  });
+
+  // Archive proposal
+  app.post("/api/archives/proposal", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { proposalId, userId } = req.body;
+      if (!proposalId || !userId) {
+        return res.status(400).json({ error: "Données manquantes" });
+      }
+      const archive = await archiveService.archiveProposal(proposalId, userId);
+      res.status(201).json(archive);
+    } catch (error: any) {
+      console.error("Archive proposal error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de l'archivage" });
+    }
+  });
+
+  // Archive defense
+  app.post("/api/archives/defense", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { defenseId, userId } = req.body;
+      if (!defenseId || !userId) {
+        return res.status(400).json({ error: "Données manquantes" });
+      }
+      const archive = await archiveService.archiveDefense(defenseId, userId);
+      res.status(201).json(archive);
+    } catch (error: any) {
+      console.error("Archive defense error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de l'archivage" });
+    }
+  });
+
+  // Get archive
+  app.get("/api/archives/:archiveId", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { archiveId } = req.params;
+      const archive = await archiveService.getArchive(archiveId);
+      if (!archive) {
+        return res.status(404).json({ error: "Archive non trouvée" });
+      }
+      res.json(archive);
+    } catch (error: any) {
+      console.error("Get archive error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Restore from archive
+  app.post("/api/archives/:archiveId/restore", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { archiveId } = req.params;
+      const result = await archiveService.restoreArchive(archiveId);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Restore archive error:", error);
+      res.status(500).json({ error: error.message || "Erreur lors de la restauration" });
+    }
+  });
+
+  // Export archives as JSON
+  app.get("/api/archives/export/json", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const recordType = req.query.recordType as string;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const data = await archiveService.exportArchivesJSON({ recordType, limit });
+      res.json(data);
+    } catch (error: any) {
+      console.error("Export archives error:", error);
+      res.status(500).json({ error: "Erreur lors de l'export" });
+    }
+  });
+
+  // Delete archive
+  app.delete("/api/archives/:archiveId", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { archiveId } = req.params;
+      await archiveService.deleteArchive(archiveId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete archive error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: SETTINGS ROUTES
+  // ============================================
+
+  // Get setting
+  app.get("/api/settings/:key", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { key } = req.params;
+      const setting = await settingsService.getSetting(key);
+      if (!setting) {
+        return res.status(404).json({ error: "Paramètre non trouvé" });
+      }
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Get setting error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Get all settings
+  app.get("/api/settings", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const category = req.query.category as string;
+      const settings = await settingsService.getAllSettings(category);
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Get all settings error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Update setting
+  app.patch("/api/settings/:key", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { key } = req.params;
+      const { value, description } = req.body;
+      if (!value) {
+        return res.status(400).json({ error: "Valeur requise" });
+      }
+      const setting = await settingsService.updateSetting(key, value, description);
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Update setting error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Initialize default settings
+  app.post("/api/settings/initialize-defaults", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const defaults = await settingsService.initializeDefaults();
+      res.json(defaults);
+    } catch (error: any) {
+      console.error("Initialize defaults error:", error);
+      res.status(500).json({ error: "Erreur lors de l'initialisation" });
+    }
+  });
+
+  // Get defense rooms
+  app.get("/api/settings-defense-rooms", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const rooms = await settingsService.getDefenseRooms();
+      res.json(rooms);
+    } catch (error: any) {
+      console.error("Get defense rooms error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Update defense rooms
+  app.patch("/api/settings-defense-rooms", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { rooms } = req.body;
+      if (!Array.isArray(rooms)) {
+        return res.status(400).json({ error: "Salles doit être un tableau" });
+      }
+      await settingsService.updateDefenseRooms(rooms);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Update defense rooms error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Get grading thresholds
+  app.get("/api/settings-grading-thresholds", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const thresholds = await settingsService.getGradingThresholds();
+      res.json(thresholds);
+    } catch (error: any) {
+      console.error("Get grading thresholds error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Get scoring weights
+  app.get("/api/settings-scoring-weights", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const weights = await settingsService.getScoringWeights();
+      res.json(weights);
+    } catch (error: any) {
+      console.error("Get scoring weights error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  // Validate settings
+  app.post("/api/settings/validate", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const result = await settingsService.validateSettings();
+      res.json(result);
+    } catch (error: any) {
+      console.error("Validate settings error:", error);
+      res.status(500).json({ error: "Erreur lors de la validation" });
+    }
+  });
+
+  // ============================================
+  // SPRINT 5: USER MANAGEMENT ROUTES
+  // ============================================
+
+  // Update user role
+  app.patch("/api/users/:userId/role", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const { role } = req.body;
+      if (!role) {
+        return res.status(400).json({ error: "Rôle requis" });
+      }
+      const updated = await storage.updateUser(userId, { role });
+      if (!updated) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      const { password: _, ...userWithoutPassword } = updated;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      console.error("Update user role error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  // Toggle user active status
+  app.patch("/api/users/:userId/toggle-active", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const { isActive } = req.body;
+      if (isActive === undefined) {
+        return res.status(400).json({ error: "Statut requis" });
+      }
+      const updated = await storage.toggleUserActive(userId, isActive);
+      if (!updated) {
+        return res.status(404).json({ error: "Utilisateur non trouvé" });
+      }
+      const { password: _, ...userWithoutPassword } = updated;
+      res.json(userWithoutPassword);
+    } catch (error: any) {
+      console.error("Toggle user active error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
     }
   });
 
