@@ -1,4 +1,4 @@
-import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut, BarChart3, Bell, Archive, Lock, User, Key, Gear } from "lucide-react";
+import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut, BarChart3, Bell, Archive, Lock, User, Key, Sliders } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -189,7 +189,7 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild data-testid="menu-item-preferences">
                   <Link href="/preferences" className="flex items-center gap-2 cursor-pointer">
-                    <Gear className="w-4 h-4" />
+                    <Sliders className="w-4 h-4" />
                     <span>Préférences</span>
                   </Link>
                 </DropdownMenuItem>
