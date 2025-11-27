@@ -90,7 +90,7 @@ export default function App() {
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("Logout failed - session cleared", error);
     }
   };
 
