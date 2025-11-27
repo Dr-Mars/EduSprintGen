@@ -74,8 +74,10 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
 
   const menuItems = user ? menuItemsByRole[user.role as keyof typeof menuItemsByRole] || menuItemsByRole.student : [];
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstName?: string, lastName?: string) => {
+    const first = firstName?.charAt(0) || "U";
+    const last = lastName?.charAt(0) || "S";
+    return `${first}${last}`.toUpperCase();
   };
 
   const getRoleLabel = (role: string) => {
