@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, AlertCircle } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { notificationEvents } from "@/lib/notification-events";
 
 const CRITERIA = {
   report: [
@@ -65,8 +66,13 @@ export default function DefenseEvaluationPage() {
         evaluations,
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["/api/defenses", defenseId] });
+      
+      // Trigger notification event
+      const studentName = defense?.proposal?.student?.firstName || "Étudiant";
+      await notificationEvents.onEvaluationSubmitted(currentUser?.id || "jury-member-id", studentName);
+      
       toast({ title: "Évaluations soumises", description: "Vos notes ont été enregistrées" });
     },
     onError: (error: any) => {
