@@ -1,4 +1,4 @@
-import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut, BarChart3, Bell, Archive, Lock } from "lucide-react";
+import { Home, FileText, ClipboardList, Calendar, Users, GraduationCap, Settings, LogOut, BarChart3, Bell, Archive, Lock, User, Key, Gear } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -15,6 +15,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface AppSidebarProps {
   user?: {
@@ -138,31 +146,75 @@ export function AppSidebar({ user, onLogout }: AppSidebarProps) {
         <>
           <Separator />
           <SidebarFooter className="p-4">
-            <div className="flex items-start gap-3 mb-3">
-              <Avatar className="w-10 h-10">
-                <AvatarImage src={user.photoUrl} alt={`${user.firstName} ${user.lastName}`} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-medium">
-                  {getInitials(user.firstName, user.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-sidebar-foreground truncate">
-                  {user.firstName} {user.lastName}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">{getRoleLabel(user.role)}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={onLogout}
-              data-testid="button-logout"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Déconnexion
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start hover-elevate active-elevate-2"
+                  data-testid="button-profile-menu"
+                >
+                  <div className="flex items-start gap-3 w-full">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={user.photoUrl} alt={`${user.firstName} ${user.lastName}`} />
+                      <AvatarFallback className="bg-primary text-primary-foreground font-medium">
+                        {getInitials(user.firstName, user.lastName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-medium text-sm text-sidebar-foreground truncate">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{getRoleLabel(user.role)}</p>
+                    </div>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild data-testid="menu-item-profile">
+                  <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User className="w-4 h-4" />
+                    <span>Voir mon profil</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild data-testid="menu-item-change-password">
+                  <Link href="/change-password" className="flex items-center gap-2 cursor-pointer">
+                    <Key className="w-4 h-4" />
+                    <span>Modifier mot de passe</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild data-testid="menu-item-preferences">
+                  <Link href="/preferences" className="flex items-center gap-2 cursor-pointer">
+                    <Gear className="w-4 h-4" />
+                    <span>Préférences</span>
+                  </Link>
+                </DropdownMenuItem>
+                {user.role === "administrator" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild data-testid="menu-item-admin-settings">
+                      <Link href="/admin-settings" className="flex items-center gap-2 cursor-pointer">
+                        <Settings className="w-4 h-4" />
+                        <span>Paramètres système</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={onLogout}
+                  className="flex items-center gap-2 cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950"
+                  data-testid="menu-item-logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Déconnexion</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarFooter>
         </>
       )}
