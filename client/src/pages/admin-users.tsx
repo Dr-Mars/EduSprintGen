@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { Edit, Toggle2, Download } from "lucide-react";
+import { Edit, Power, Download } from "lucide-react";
 
 export default function AdminUsers() {
   const { data: users = [], isLoading: usersLoading, refetch: refetchUsers } = useQuery({
@@ -134,7 +134,7 @@ export default function AdminUsers() {
                           onClick={() => handleToggleUser(user.id, user.isActive)}
                           data-testid={`button-toggle-user-${idx}`}
                         >
-                          <Toggle2 className="h-4 w-4" />
+                          <Power className="h-4 w-4" />
                         </Button>
                       </td>
                     </tr>
