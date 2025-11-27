@@ -120,6 +120,10 @@ export default function ProposalForm({ initialData, onSaveDraft, onSubmit, speci
     setIsSaving(true);
     try {
       await onSubmit?.(data);
+      
+      // Trigger notification event
+      await notificationEvents.onProposalSubmitted("current-student-id", data.title, "coordinator-id");
+      
       toast({
         title: "Proposition soumise",
         description: "Votre proposition a été soumise pour validation",
