@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, ArrowLeft, Save, Send, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { notificationEvents } from "@/lib/notification-events";
 
 const proposalSchema = z.object({
   title: z.string().min(10, "Le titre doit contenir au moins 10 caractères"),
