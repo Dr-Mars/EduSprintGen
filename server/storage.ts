@@ -406,12 +406,50 @@ export class DatabaseStorage implements IStorage {
 
   // Specialties
   async listSpecialties(): Promise<Specialty[]> {
-    return db.select().from(specialties).where(eq(specialties.isActive, true)).orderBy(specialties.name);
+    return db.select().from(specialties).orderBy(specialties.name);
+  }
+
+  async getSpecialty(id: string): Promise<Specialty | undefined> {
+    const [specialty] = await db.select().from(specialties).where(eq(specialties.id, id));
+    return specialty || undefined;
   }
 
   async createSpecialty(specialty: InsertSpecialty): Promise<Specialty> {
     const [created] = await db.insert(specialties).values(specialty).returning();
     return created;
+  }
+
+  async updateSpecialty(id: string, data: Partial<InsertSpecialty>): Promise<Specialty | undefined> {
+    const [updated] = await db.update(specialties).set(data).where(eq(specialties.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteSpecialty(id: string): Promise<void> {
+    await db.delete(specialties).where(eq(specialties.id, id));
+  }
+
+  // PFE Types
+  async listPfeTypes(): Promise<any[]> {
+    return db.select().from(pfeTypes).orderBy(pfeTypes.name);
+  }
+
+  async getPfeType(id: string): Promise<any | undefined> {
+    const [type] = await db.select().from(pfeTypes).where(eq(pfeTypes.id, id));
+    return type || undefined;
+  }
+
+  async createPfeType(type: any): Promise<any> {
+    const [created] = await db.insert(pfeTypes).values(type).returning();
+    return created;
+  }
+
+  async updatePfeType(id: string, data: Partial<any>): Promise<any | undefined> {
+    const [updated] = await db.update(pfeTypes).set(data).where(eq(pfeTypes.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deletePfeType(id: string): Promise<void> {
+    await db.delete(pfeTypes).where(eq(pfeTypes.id, id));
   }
 
   // Academic Years
@@ -574,7 +612,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async listAuditLogs(filters?: { userId?: string; resourceType?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
+  async listAuditLogs(filters?: { userId?: string; resourceType?: string; action?: string; dateFrom?: Date; dateTo?: Date; limit?: number; offset?: number }): Promise<AuditLog[]> {
     let query = db.select().from(auditLogs);
     
     if (filters?.userId) {
@@ -582,6 +620,15 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters?.resourceType) {
       query = query.where(eq(auditLogs.resourceType, filters.resourceType));
+    }
+    if (filters?.action) {
+      query = query.where(eq(auditLogs.action, filters.action));
+    }
+    if (filters?.dateFrom) {
+      query = query.where(sql`${auditLogs.createdAt} >= ${filters.dateFrom}`);
+    }
+    if (filters?.dateTo) {
+      query = query.where(sql`${auditLogs.createdAt} <= ${filters.dateTo}`);
     }
     
     query = query.orderBy(desc(auditLogs.createdAt));
@@ -594,6 +641,29 @@ export class DatabaseStorage implements IStorage {
     }
     
     return query;
+  }
+
+  async countAuditLogs(filters?: { userId?: string; resourceType?: string; action?: string; dateFrom?: Date; dateTo?: Date }): Promise<number> {
+    let query = db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+    
+    if (filters?.userId) {
+      query = query.where(eq(auditLogs.userId, filters.userId));
+    }
+    if (filters?.resourceType) {
+      query = query.where(eq(auditLogs.resourceType, filters.resourceType));
+    }
+    if (filters?.action) {
+      query = query.where(eq(auditLogs.action, filters.action));
+    }
+    if (filters?.dateFrom) {
+      query = query.where(sql`${auditLogs.createdAt} >= ${filters.dateFrom}`);
+    }
+    if (filters?.dateTo) {
+      query = query.where(sql`${auditLogs.createdAt} <= ${filters.dateTo}`);
+    }
+    
+    const result = await query;
+    return result[0]?.count || 0;
   }
 
   // Sprint 6: Password Reset

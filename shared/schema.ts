@@ -109,6 +109,14 @@ export const specialties = pgTable("specialties", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const pfeTypes = pgTable("pfe_types", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const companies = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -426,6 +434,11 @@ export const insertSpecialtySchema = createInsertSchema(specialties).omit({
   createdAt: true,
 });
 
+export const insertPfeTypeSchema = createInsertSchema(pfeTypes).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertAcademicYearSchema = createInsertSchema(academicYears).omit({
   id: true,
   createdAt: true,
@@ -487,6 +500,9 @@ export type Company = typeof companies.$inferSelect;
 
 export type InsertSpecialty = z.infer<typeof insertSpecialtySchema>;
 export type Specialty = typeof specialties.$inferSelect;
+
+export type InsertPfeType = z.infer<typeof insertPfeTypeSchema>;
+export type PfeType = typeof pfeTypes.$inferSelect;
 
 export type InsertAcademicYear = z.infer<typeof insertAcademicYearSchema>;
 export type AcademicYear = typeof academicYears.$inferSelect;
