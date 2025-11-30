@@ -1372,6 +1372,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PHASE 2: SPECIALTIES MANAGEMENT ROUTES
+  // ============================================
+
+  app.get("/api/specialties", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const specialties = await storage.listSpecialties();
+      res.json(specialties);
+    } catch (error: any) {
+      console.error("List specialties error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.post("/api/specialties", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const data = insertSpecialtySchema.parse(req.body);
+      const specialty = await storage.createSpecialty(data);
+      res.json(specialty);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create specialty error:", error);
+      res.status(500).json({ error: "Erreur lors de la création" });
+    }
+  });
+
+  app.patch("/api/specialties/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const data = insertSpecialtySchema.partial().parse(req.body);
+      const specialty = await storage.updateSpecialty(id, data);
+      if (!specialty) {
+        return res.status(404).json({ error: "Spécialité non trouvée" });
+      }
+      res.json(specialty);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Update specialty error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  app.delete("/api/specialties/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteSpecialty(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete specialty error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
+  // ============================================
+  // PHASE 2: PFE TYPES MANAGEMENT ROUTES
+  // ============================================
+
+  app.get("/api/pfe-types", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const types = await storage.listPfeTypes();
+      res.json(types);
+    } catch (error: any) {
+      console.error("List pfe types error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.post("/api/pfe-types", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { name, description } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "Nom requis" });
+      }
+      const type = await storage.createPfeType({ name, description });
+      res.json(type);
+    } catch (error: any) {
+      console.error("Create pfe type error:", error);
+      res.status(500).json({ error: "Erreur lors de la création" });
+    }
+  });
+
+  app.patch("/api/pfe-types/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { name, description } = req.body;
+      const type = await storage.updatePfeType(id, { name, description });
+      if (!type) {
+        return res.status(404).json({ error: "Type non trouvé" });
+      }
+      res.json(type);
+    } catch (error: any) {
+      console.error("Update pfe type error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  app.delete("/api/pfe-types/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePfeType(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete pfe type error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
+  // ============================================
+  // PHASE 2: AUDIT LOGS ROUTES
+  // ============================================
+
+  app.get("/api/audit-logs", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { userId, resourceType, action, dateFrom, dateTo, limit = "50", offset = "0", format } = req.query;
+      
+      const filters = {
+        userId: userId as string,
+        resourceType: resourceType as string,
+        action: action as string,
+        dateFrom: dateFrom ? new Date(dateFrom as string) : undefined,
+        dateTo: dateTo ? new Date(dateTo as string) : undefined,
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+      };
+
+      const logs = await storage.listAuditLogs(filters);
+      const total = await storage.countAuditLogs(filters);
+
+      if (format === "csv") {
+        const csv = [
+          "Date,Utilisateur,Action,Ressource,ID Ressource,Changements",
+          ...logs.map((l: any) => `"${new Date(l.createdAt).toISOString()}","${l.userId || "Système"}","${l.action}","${l.resourceType}","${l.resourceId || ""}","${(l.changes || "").replace(/"/g, '""')}"`),
+        ].join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", "attachment; filename=audit-logs.csv");
+        res.send(csv);
+      } else if (format === "json") {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", "attachment; filename=audit-logs.json");
+        res.json(logs);
+      } else {
+        res.json({ logs, total });
+      }
+    } catch (error: any) {
+      console.error("List audit logs error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.post("/api/audit-logs", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const data = insertAuditLogSchema.parse(req.body);
+      const log = await storage.createAuditLog(data);
+      res.json(log);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Données invalides", details: error.errors });
+      }
+      console.error("Create audit log error:", error);
+      res.status(500).json({ error: "Erreur lors de la création" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

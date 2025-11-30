@@ -24,6 +24,9 @@ import NotificationsPage from "@/pages/notifications";
 import AdminSettings from "@/pages/admin-settings";
 import AdminUsers from "@/pages/admin-users";
 import AdminArchives from "@/pages/admin-archives";
+import AdminSpecialties from "@/pages/admin-specialties";
+import AdminPfeTypes from "@/pages/admin-pfe-types";
+import AdminAuditLogs from "@/pages/admin-audit-logs";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import { useQuery } from "@tanstack/react-query";
@@ -53,6 +56,9 @@ function Router() {
       <Route path="/admin-settings" component={() => <AdminSettings />} />
       <Route path="/admin-users" component={() => <AdminUsers />} />
       <Route path="/admin-archives" component={() => <AdminArchives />} />
+      <Route path="/admin-specialties" component={() => <AdminSpecialties />} />
+      <Route path="/admin-pfe-types" component={() => <AdminPfeTypes />} />
+      <Route path="/admin-audit-logs" component={() => <AdminAuditLogs />} />
       <Route path="/forgot-password" component={() => <ForgotPasswordPage />} />
       <Route path="/reset-password/:token" component={() => <ResetPasswordPage />} />
       <Route component={NotFound} />
