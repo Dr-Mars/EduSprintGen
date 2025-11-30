@@ -269,6 +269,17 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// 2FA TOTP Table
+export const twoFactorAuth = pgTable("two_factor_auth", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().unique().references(() => users.id),
+  secret: varchar("secret", { length: 255 }).notNull(),
+  backupCodes: text("backup_codes").notNull(), // JSON array stored as text
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  enabledAt: timestamp("enabled_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   pfeProposalsAsStudent: many(pfeProposals, { relationName: "studentProposals" }),
@@ -388,6 +399,13 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   }),
 }));
 
+export const twoFactorAuthRelations = relations(twoFactorAuth, ({ one }) => ({
+  user: one(users, {
+    fields: [twoFactorAuth.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -476,6 +494,12 @@ export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTo
   createdAt: true,
 });
 
+export const insertTwoFactorAuthSchema = createInsertSchema(twoFactorAuth).omit({
+  id: true,
+  createdAt: true,
+  enabledAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -526,6 +550,9 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertPasswordResetToken = z.infer<typeof insertPasswordResetTokenSchema>;
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
+export type InsertTwoFactorAuth = z.infer<typeof insertTwoFactorAuthSchema>;
+export type TwoFactorAuth = typeof twoFactorAuth.$inferSelect;
+
 // Login schema
 export const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -546,3 +573,15 @@ export const resetPasswordSchema = z.object({
 
 export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
+
+// 2FA TOTP Schemas
+export const enable2FASchema = z.object({
+  code: z.string().length(6, "Code doit être 6 chiffres"),
+});
+
+export const verify2FASchema = z.object({
+  code: z.string().length(6, "Code doit être 6 chiffres"),
+});
+
+export type Enable2FARequest = z.infer<typeof enable2FASchema>;
+export type Verify2FARequest = z.infer<typeof verify2FASchema>;
