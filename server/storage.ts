@@ -283,6 +283,15 @@ export class DatabaseStorage implements IStorage {
     return updated || undefined;
   }
 
+  async updateReport(id: string, data: Partial<InsertReport>): Promise<Report | undefined> {
+    const [updated] = await db
+      .update(reports)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(reports.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   // Defenses
   async getDefense(id: string): Promise<any | undefined> {
     const [defense] = await db.query.defenses.findMany({
