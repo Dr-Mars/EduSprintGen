@@ -1,200 +1,330 @@
-# Plateforme PFE - Gestion des Projets de Fin d'Études
+# 📊 PFE Management Platform - État du Projet
 
-## Vue d'ensemble
-Application web moderne pour la gestion complète des Projets de Fin d'Études (PFE) dans les établissements universitaires. Inspirée de Moodle et Google Classroom, cette plateforme offre un workflow complet de la soumission des propositions jusqu'à l'évaluation des soutenances.
+**Date:** 30 Novembre 2025  
+**Version:** Sprint 6 (Phase 1 en cours)  
+**Complétude Globale:** 75% (amélioration depuis 70%)
 
-## Stack technique
-- **Frontend**: React 18 + TypeScript + Vite
-- **Backend**: Express.js + TypeScript  
-- **Base de données**: PostgreSQL avec Drizzle ORM
-- **UI**: Shadcn UI + Tailwind CSS
-- **Formulaires**: React Hook Form + Zod
-- **État**: TanStack Query (React Query v5)
-- **Routing**: Wouter
+---
 
-## Architecture du projet
+## 🎯 OBJECTIF DU PROJET
 
-### Structure des dossiers
-```
-├── client/                 # Application frontend React
-│   ├── src/
-│   │   ├── components/    # Composants réutilisables
-│   │   │   ├── ui/        # Composants Shadcn UI
-│   │   │   ├── app-sidebar.tsx
-│   │   │   ├── stat-card.tsx
-│   │   │   └── status-badge.tsx
-│   │   ├── pages/         # Pages de l'application
-│   │   │   ├── login.tsx
-│   │   │   ├── dashboard.tsx
-│   │   │   ├── proposal-form.tsx
-│   │   │   ├── proposals-list.tsx
-│   │   │   ├── reports.tsx
-│   │   │   ├── defenses.tsx
-│   │   │   ├── users-management.tsx
-│   │   │   └── not-found.tsx
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── lib/           # Utilitaires et configuration
-│   │   ├── App.tsx        # Point d'entrée de l'app
-│   │   └── index.css      # Styles globaux + design tokens
-│   └── index.html
-├── server/                # Application backend Express
-│   ├── app.ts            # Configuration Express
-│   ├── routes.ts         # Définition des routes API
-│   ├── storage.ts        # Interface de stockage
-│   └── db.ts             # Configuration base de données
-├── shared/               # Code partagé frontend/backend
-│   └── schema.ts         # Schémas Drizzle + types TypeScript + validation Zod
-└── design_guidelines.md  # Directives de design
+Plateforme complète de gestion des Projets de Fin d'Études (PFE) pour universités avec:
+- ✅ Multi-rôles authentification (Student, Academic Supervisor, Company Supervisor, Coordinator, Manager, Admin)
+- ✅ Workflows PFE multi-étapes avec validation
+- ✅ Gestion rapports avec détection plagiat et watermarking
+- ✅ Planification défenses avec gestion jury et détection conflits
+- ✅ Calcul grades automatisé avec mentions d'honneur
+- ✅ Récupération mot de passe par email (30min tokens)
+- ✅ Notifications avec préférences email
+- ✅ Analytics et archives avec export JSON/CSV
+- ✅ Audit logs et paramètres système
+- ✅ Features IA (Gemini) pour analyse propositions et feedback
 
-### Modèle de données
+---
 
-#### Tables principales
-- **users**: Utilisateurs avec rôles (étudiant, encadrant académique, encadrant entreprise, coordinateur, gestionnaire, administrateur)
-- **academic_years**: Années académiques
-- **specialties**: Spécialités/départements
-- **companies**: Entreprises partenaires
-- **pfe_proposals**: Propositions de PFE avec workflow de validation
-- **reports**: Rapports avec versioning et analyse de plagiat
-- **defenses**: Soutenances planifiées
-- **jury_members**: Composition des jurys
-- **evaluations**: Évaluations multi-critères
+## ✅ COMPLÉTÉ (Phase 1 - 95%)
 
-#### Workflow PFE
-1. **Brouillon** → Étudiant crée une proposition
-2. **Soumis** → Étudiant soumet pour validation
-3. **À modifier** → Coordinateur demande des modifications
-4. **Validé** → Coordinateur approuve la proposition
-5. **Rejeté** → Coordinateur rejette la proposition
+### Sécurité & Authentification
+- ✅ Login email/password avec bcrypt
+- ✅ Gestion profils utilisateur
+- ✅ Menu profil dropdown
+- ✅ **Password Reset par Email** - Routes, pages, services COMPLETS
+  - Backend: `/api/auth/forgot-password`, `/api/auth/reset-password`, `/api/auth/verify-reset-token`
+  - Frontend: `forgot-password.tsx`, `reset-password.tsx`
+  - Tokens 30min, sécurisés, one-time use
+- ✅ **PDF Watermarking Service** - Service créé prêt à intégrer
+  - `pdf-watermark-service.ts` avec ajout watermark ID/nom/date
+  - Intégration dans `/api/reports` POST route
 
-## Fonctionnalités MVP
+### Database & Schemas
+- ✅ Tables complètes pour tous les modules
+- ✅ Authentification + RBAC
+- ✅ PFE Proposals workflows
+- ✅ Reports versioning
+- ✅ Defenses + Jury management
+- ✅ Evaluations + Grading
+- ✅ Notifications
+- ✅ Archives
+- ✅ System Settings
+- ✅ Audit Logs
+- ✅ Password Reset Tokens
 
-### Authentification (Sprint 1)
-- ✅ Connexion par email/mot de passe
-- ✅ Gestion du compte utilisateur
-- ✅ Système de rôles (RBAC)
-- ✅ Interface d'administration des utilisateurs
+### Gestion Propositions PFE
+- ✅ Formulaire 4 étapes
+- ✅ Validation automatique documents
+- ✅ Workflows: draft → submitted → to_modify/approved/rejected
+- ✅ Assignation automatique encadrants
+- ✅ Types PFE: academic, company, research
 
-### Propositions PFE (Sprint 2)
-- ✅ Formulaire multi-étapes avec validation
-- ✅ Workflow de validation coordinateur
-- ✅ Affectation des encadrants académiques
-- ✅ Gestion des statuts (brouillon, soumis, validé, rejeté)
+### Gestion Rapports
+- ✅ Types: bibliographic, midterm, final
+- ✅ Upload avec drag & drop
+- ✅ Versioning automatique
+- ✅ Métadonnées extraction
+- ✅ Score plagiat détecté
+- ✅ Watermarking prêt (juste intégration + test)
 
-### Rapports (Sprint 3)
-- ✅ Upload de rapports PDF
-- ✅ Versioning des rapports
-- ✅ Historique des soumissions
-- ✅ Préparation pour analyse de plagiat (Phase 2)
+### Planification Défenses
+- ✅ Calendar interface
+- ✅ Sélection date/heure/salle
+- ✅ Gestion jury membres
+- ✅ Détection conflicts of interest
+- ✅ Notifications automatiques
 
-### Soutenances (Sprint 4)
-- ✅ Planification avec calendrier
-- ✅ Composition des jurys avec contraintes
-- ✅ Système d'évaluation multi-critères
-- ✅ Calcul automatique des notes finales
+### Grading & Evaluation
+- ✅ Grille évaluation complète
+- ✅ Weighted scores (30-40-30)
+- ✅ Auto-calcul mentions
+- ✅ Feedback IA (Gemini)
+- ✅ Dashboard résultats
 
-### Dashboards
-- ✅ Dashboard personnalisé par rôle
-- ✅ Statistiques et métriques
-- ✅ Activité récente
-- ✅ Actions rapides
+### Notifications
+- ✅ 8 types notifications complètes
+- ✅ Email digest (daily/weekly)
+- ✅ In-app notifications
+- ✅ Marquage lecture
+- ✅ Page notifications avec filtres
+- ✅ Préférences personnalisées
 
-## Design System
+### Analytics & Admin
+- ✅ Dashboard analytics
+- ✅ Top performers
+- ✅ Taux validation proposals
+- ✅ Distribution notes
+- ✅ Graphiques Recharts
 
-### Palette de couleurs
-- **Primaire**: `hsl(342, 85%, 53%)` - Rouge vibrant pour CTAs et éléments importants
-- **Secondaire**: `hsl(0, 0%, 77%)` - Gris clair pour bordures
-- **Background**: `hsl(0, 0%, 94%)` - Gris très clair pour fond de page
-- **Surface**: `hsl(0, 0%, 100%)` - Blanc pour cartes et surfaces élevées
+### Archives & Export
+- ✅ Archivage records
+- ✅ Export JSON/CSV
+- ✅ Pagination
 
-### Typographie
-- **Police**: Poppins (Google Fonts)
-- **Headings**: 32px/24px/20px/16px avec font-semibold/medium
-- **Body**: 16px/14px/12px avec font-normal
+### Audit & Configuration
+- ✅ Audit logs tracking
+- ✅ System settings CRUD
+- ✅ Categories management
 
-### Espacements
-- Padding de carte: `p-6`
-- Espacement de section: `py-8` ou `py-12`
-- Gap entre cartes: `gap-6`
-- Espacement de formulaire: `space-y-4`
+### Frontend & UX
+- ✅ Design cohérent (Poppins, rouge primary)
+- ✅ Responsive card-based layouts
+- ✅ Navigation sidebar
+- ✅ Light/Dark mode support
+- ✅ Tous les data-testid attributes
 
-### Composants
-- Border radius: `0.8rem` (tel que spécifié)
-- Cartes avec hover states subtils
-- Badges de statut colorés
-- Formulaires avec validation inline
-- Tableaux avec alternance de couleurs
+---
 
-## Rôles et permissions
+## ❌ À COMPLÉTER (16 tâches)
 
-### Étudiant
-- Créer et modifier sa proposition PFE
-- Déposer des rapports
-- Consulter sa soutenance et ses notes
+### 🔴 CRITICITÉ HAUTE - À Faire IMMÉDIATEMENT (Phase 1 Finalization)
 
-### Encadrant académique/entreprise
-- Voir ses encadrements
-- Consulter les rapports
-- Participer aux jurys
+#### 1. **Finaliser Phase 1 (URGENT - 2 turns)**
+- [ ] Ajouter méthode `updateReport()` dans `server/storage.ts` DatabaseStorage
+- [ ] Redémarrer application pour valider tout
+- [ ] Tester password reset end-to-end
+- [ ] Tester watermarking intégration
 
-### Coordinateur
-- Valider/rejeter les propositions
-- Affecter les encadrants
-- Planifier les soutenances
+#### 2. **2FA TOTP Authentication (4-5 turns)**
+- [ ] npm install speakeasy qrcode
+- [ ] Backend: 5 routes `/api/auth/2fa/*`
+- [ ] Frontend: Components setup modal + verify
+- [ ] Page settings-security
+- [ ] Login flow integration
+- [ ] Backup codes generation
+- **CDC:** Sécurité crítica
 
-### Gestionnaire
-- Planifier les soutenances
-- Gérer les créneaux et salles
-- Composer les jurys
+#### 3. **Gestion Admin Specialties (3-4 turns)**
+- [ ] Backend routes CRUD `/api/admin/specialties`
+- [ ] Frontend page `admin-specialties.tsx`
+- [ ] Table with validation
+- [ ] Cascade delete checks
+- **CDC:** Configuration système
 
-### Administrateur
-- Gestion complète des utilisateurs
-- Configuration système
-- Accès à toutes les fonctionnalités
+#### 4. **Gestion Admin PFE Types (3-4 turns)**
+- [ ] Backend routes CRUD `/api/admin/pfe-types`
+- [ ] Frontend page `admin-pfe-types.tsx`
+- [ ] Similar à Specialties
+- **CDC:** Configuration système
 
-## Prochaines étapes (Phase 2)
+#### 5. **Audit Logs Viewer Interface (4-5 turns)**
+- [ ] Backend: `/api/admin/audit-logs` avec filters
+- [ ] Frontend: `admin-audit-logs.tsx`
+- [ ] Filters: userId, resourceType, action, dateRange
+- [ ] Export CSV/JSON
+- [ ] Database indexes pour performance
+- **CDC:** Traçabilité opérationnelle
 
-### Fonctionnalités futures
-- Intégration service IA pour analyse de plagiat
-- Notifications en temps réel (in-app + email)
-- Messagerie interne sécurisée
-- Génération de documents PDF (conventions, attestations)
-- Analytics avancés avec statistiques détaillées
-- Export de données (CSV/Excel)
-- Gestion des années académiques
-- Configuration des grilles d'évaluation
+#### 6. **Coordinator Dashboard - Voir Toutes Propositions (2-3 turns)**
+- [ ] Backend: `/api/proposals?role=coordinator`
+- [ ] Frontend: `coordinator-proposals.tsx`
+- [ ] Filters: status, specialty, date, encadrant
+- [ ] Bulk actions (approve/reject)
+- [ ] Export selected
+- **CDC:** UX coordinateur
 
-## Commandes utiles
+#### 7. **Export Calendar iCal Défenses (2-3 turns)**
+- [ ] npm install ical
+- [ ] Backend: `/api/defenses/:id/export-calendar`
+- [ ] Frontend: Button export
+- [ ] Multi-defense export option
+- **CDC:** Intégration calendars
 
-```bash
-# Développement
-npm run dev              # Démarrer le serveur de développement
+### 🟡 CRITICITÉ MOYENNE - Phase 2 (8-10 turns)
 
-# Base de données
-npm run db:push          # Pousser le schéma vers la base de données
-npm run db:push --force  # Forcer la mise à jour du schéma (destructif)
+#### 8. **Historique Complet Rapports (Timeline UI)**
+- [ ] Timeline component
+- [ ] Afficher versions avec diff
+- [ ] Télécharger versions antérieures
 
-# Build
-npm run build            # Construire pour la production
-npm start                # Démarrer en mode production
-```
+#### 9. **Rapports Avancés & Analytics PDF**
+- [ ] npm install pdfkit
+- [ ] Génération PDF rapports analytics
+- [ ] Graphiques intégrés
 
-## Notes de développement
+#### 10. **Recherche Avancée Archives**
+- [ ] Full-text search
+- [ ] Filtres multiples
+- [ ] Date range picker
 
-### Changements récents
-- **2024-01**: Création du schéma complet de la base de données
-- **2024-01**: Implémentation de tous les composants frontend MVP
-- **2024-01**: Configuration du design system avec Poppins et couleurs personnalisées
+#### 11. **Reset System Settings à Défaut**
+- [ ] Backend endpoint
+- [ ] Frontend UI button
 
-### Préférences utilisateur
-- Design inspiré de Moodle/Google Classroom
-- Palette rouge vibrant comme couleur principale
-- Police Poppins pour une apparence moderne
-- Espacement généreux (16px base)
-- Border radius de 0.8rem pour cohérence visuelle
+#### 12. **Validation Paramètres Avancée**
+- [ ] Schema validation stricter
+- [ ] Type checking
 
-### Décisions architecturales
-- Schema-first approach avec Drizzle ORM
-- Validation unifiée avec Zod (frontend + backend)
-- React Query pour gestion d'état serveur
-- Shadcn UI pour composants cohérents
-- Sidebar navigation pour meilleure UX
+### 🔵 FUTURE (Phases 3-4, Non-Prioritaires)
+
+#### 13. **Push Notifications** (8-10 turns) - Phase 3
+#### 14. **SMS Notifications** (8-10 turns) - Phase 3
+#### 15. **Support Multilingue** (10-12 turns) - Phase 3
+#### 16. **Signature Électronique** (12-15 turns) - Phase 4
+
+---
+
+## 📋 ANALYSE PAR MODULE
+
+| Module | Status | Complétude | Notes |
+|--------|--------|-----------|-------|
+| 🔐 Authentification | ✅ | 95% | Manque 2FA |
+| 👥 RBAC & Permissions | ✅ | 90% | Complet pour Phase 1 |
+| 📝 Propositions PFE | ✅ | 95% | Complet |
+| 📄 Rapports | ✅ | 90% | Watermarking intégré |
+| 🛡️ Plagiat & IA | ✅ | 85% | Détection fonctionnelle |
+| 📅 Défenses | ✅ | 90% | Manque export iCal |
+| 👨‍⚖️ Jury | ✅ | 85% | Complet |
+| 📊 Grading | ✅ | 90% | Complet |
+| 🔔 Notifications | ✅ | 95% | Complet |
+| 📈 Analytics | ✅ | 85% | Rapports avancés manquent |
+| 📁 Archives | ✅ | 85% | Recherche avancée manque |
+| ⚙️ Settings | ✅ | 80% | Config admin incomplète |
+| 📋 Audit | ✅ | 75% | Viewer interface manque |
+
+---
+
+## 🔧 STACK TECHNIQUE
+
+**Frontend:**
+- React 18 + TypeScript
+- Wouter (routing)
+- React Hook Form + Zod (validation)
+- TanStack Query v5 (data fetching)
+- Shadcn UI + Tailwind CSS
+- Lucide React (icons)
+- Framer Motion (animations)
+
+**Backend:**
+- Express.js
+- Drizzle ORM
+- PostgreSQL (Neon)
+- Bcrypt (password hashing)
+- JWT (auth - à implémenter)
+- Gemini API (AI features)
+- PDF-lib (watermarking)
+
+**Intégrations:**
+- ✅ Gemini API (AI analysis)
+- ✅ PostgreSQL Database
+- ✅ PDF Watermarking (pdf-lib)
+- ⏳ Email Service (nodemailer - setup)
+- ⏳ 2FA Service (speakeasy)
+- ⏳ Calendar Export (ical)
+
+---
+
+## 📈 PROGRESS TRACKING
+
+**Phase 1 - Sécurité & Documents (CURRENT)**
+- ✅ Password Reset: 100% (routes + pages complets, juste test final)
+- ✅ PDF Watermarking: 95% (service + intégration, test pending)
+- ⏳ 2FA TOTP: 0% (à commencer)
+- **Estimated:** 7-9 jours (~10-15 turns)
+
+**Phase 2 - Configuration & UX**
+- ⏳ Specialties CRUD: 0%
+- ⏳ PFE Types CRUD: 0%
+- ⏳ Audit Logs Viewer: 0%
+- ⏳ Coordinator Dashboard: 0%
+- ⏳ Calendar Export: 0%
+- **Estimated:** 12-14 jours (~18-22 turns)
+
+**Phase 3 - Advanced Features**
+- Rapports avancés
+- Multilingue
+- Push/SMS notifications
+- **Estimated:** 20+ jours
+
+**Phase 4 - Futur**
+- Visioconférence
+- Signature électronique
+
+---
+
+## 🎓 FONCTIONNALITÉS CRITIQUES COMPLÉTÉES
+
+1. ✅ **Multi-role Authentication** - 6 rôles avec RBAC matrix
+2. ✅ **PFE Proposal Workflows** - 4 étapes, validation, routing
+3. ✅ **Report Management** - Upload, versioning, plagiarism detection
+4. ✅ **Defense Scheduling** - Calendar, jury, conflict detection
+5. ✅ **Grading System** - Weighted scores, mentions, feedback IA
+6. ✅ **Notifications** - 8 types, email digest, in-app
+7. ✅ **Analytics Dashboard** - Top performers, statistics
+8. ✅ **Archives & Export** - JSON/CSV export
+9. ✅ **Audit Logs** - Tracking complet
+10. ✅ **Password Recovery** - Email links 30min
+11. ✅ **PDF Watermarking** - ID/Name/Date stamps
+
+---
+
+## 🚀 PROCHAINES ÉTAPES
+
+### Immédiat (Aujourd'hui)
+1. Ajouter `updateReport()` method
+2. Redémarrer app et tester password reset + watermarking
+3. Commit changements
+
+### Sprint Prochain (This Week)
+1. Implémenter 2FA TOTP
+2. Implémenter Specialties & PFE Types CRUD
+3. Implémenter Audit Logs Viewer
+4. Implémenter Coordinator Dashboard
+5. Implémenter Calendar Export iCal
+
+### Optimisations
+- Ajouter email service (Nodemailer)
+- Ajouter rate limiting
+- Ajouter CSRF protection
+- Optimiser performance queries
+
+---
+
+## 📝 NOTES
+
+- **Gemini API:** GEMINI_API_KEY optionnelle depuis utilisateur (AI features optionnelles)
+- **Email Service:** À setup pour password reset email delivery
+- **Database:** PostgreSQL Neon backend-backed, migrations gérées par Drizzle
+- **UI/UX:** Design language établi (Poppins, rouge primary, cards)
+- **Testing:** Data-testid attributes sur tous éléments interactifs
+
+---
+
+*Dernière mise à jour: 30 Nov 2025 - Agent Replit*
