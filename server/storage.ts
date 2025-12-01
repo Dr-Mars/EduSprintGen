@@ -680,6 +680,54 @@ export class DatabaseStorage implements IStorage {
   async deletePasswordResetToken(token: string): Promise<void> {
     await db.delete(passwordResetTokens).where(eq(passwordResetTokens.token, token));
   }
+
+  // Phase 4: Videoconference Sessions
+  async createVideoconferenceSession(session: any): Promise<any> {
+    const [created] = await db.insert(videoconferenceSessions).values(session).returning();
+    return created;
+  }
+
+  async getVideoconferenceSession(id: string): Promise<any> {
+    const [session] = await db.select().from(videoconferenceSessions).where(eq(videoconferenceSessions.id, id));
+    return session || undefined;
+  }
+
+  async listVideoconferenceSessions(defenseId?: string): Promise<any[]> {
+    let query = db.select().from(videoconferenceSessions);
+    if (defenseId) {
+      query = query.where(eq(videoconferenceSessions.defenseId, defenseId));
+    }
+    return query.orderBy(desc(videoconferenceSessions.createdAt));
+  }
+
+  async updateVideoconferenceSession(id: string, data: Partial<any>): Promise<any> {
+    const [updated] = await db.update(videoconferenceSessions).set({ ...data, updatedAt: new Date() }).where(eq(videoconferenceSessions.id, id)).returning();
+    return updated || undefined;
+  }
+
+  // Phase 4: Digital Signatures
+  async createDigitalSignature(signature: any): Promise<any> {
+    const [created] = await db.insert(digitalSignatures).values(signature).returning();
+    return created;
+  }
+
+  async getDigitalSignature(id: string): Promise<any> {
+    const [sig] = await db.select().from(digitalSignatures).where(eq(digitalSignatures.id, id));
+    return sig || undefined;
+  }
+
+  async listDigitalSignatures(documentId?: string): Promise<any[]> {
+    let query = db.select().from(digitalSignatures);
+    if (documentId) {
+      query = query.where(eq(digitalSignatures.documentId, documentId));
+    }
+    return query.orderBy(desc(digitalSignatures.createdAt));
+  }
+
+  async updateDigitalSignature(id: string, data: Partial<any>): Promise<any> {
+    const [updated] = await db.update(digitalSignatures).set(data).where(eq(digitalSignatures.id, id)).returning();
+    return updated || undefined;
+  }
 }
 
 export const storage = new DatabaseStorage();
