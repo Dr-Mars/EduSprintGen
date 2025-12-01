@@ -3,13 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Download, Clock, AlertCircle, CheckCircle2, Eye } from "lucide-react";
+import { Upload, FileText, Download, Clock, AlertCircle, CheckCircle2, Eye, History } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ReportTimeline } from "@/components/report-timeline";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Report {
   id: string;
@@ -145,6 +147,17 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
     return { color: "text-red-600", label: "Élevé", bg: "bg-red-50", badge: "destructive" };
   };
 
+  const handleDownloadReport = (reportId: string) => {
+    const report = reports.find(r => r.id === reportId);
+    if (report) {
+      const link = document.createElement('a');
+      link.href = report.fileUrl || '#';
+      link.download = report.fileName;
+      link.click();
+      toast({ title: "Succès", description: "Rapport en téléchargement" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -241,100 +254,30 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
 
       <Card>
         <CardHeader>
-          <CardTitle>Historique des rapports</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Chronologie des rapports
+          </CardTitle>
           <CardDescription>
-            Consultez et téléchargez vos rapports précédents
+            Consultez vos rapports précédents par type et version
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border rounded-md">
-                  <Skeleton className="w-12 h-12 rounded-md" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                  <Skeleton className="h-9 w-24" />
-                </div>
+                <Skeleton key={i} className="h-24 w-full" />
               ))}
             </div>
-          ) : reports.length > 0 ? (
-            <div className="space-y-3">
-              {reports.map((report) => {
-                const plagiarismStatus = getPlagiarismStatus(report.plagiarismScore);
-                return (
-                  <div
-                    key={report.id}
-                    className="flex items-start gap-4 p-4 border rounded-md hover-elevate"
-                    data-testid={`report-item-${report.id}`}
-                  >
-                    <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm truncate">{report.fileName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Version {report.version} • {report.type} • {formatFileSize(report.fileSize)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Déposé le {new Date(report.uploadedAt).toLocaleDateString('fr-FR')}
-                          </p>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDownload?.(report.id)}
-                          data-testid={`button-download-${report.id}`}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Télécharger
-                        </Button>
-                      </div>
-                      {plagiarismStatus ? (
-                        <div className={`flex items-center gap-2 p-2 rounded-md ${plagiarismStatus.bg} mt-2`}>
-                          {report.plagiarismScore !== undefined && report.plagiarismScore < 70 ? (
-                            <CheckCircle2 className={`w-4 h-4 ${plagiarismStatus.color}`} />
-                          ) : (
-                            <AlertCircle className={`w-4 h-4 ${plagiarismStatus.color}`} />
-                          )}
-                          <span className={`text-xs font-medium ${plagiarismStatus.color}`}>
-                            Plagiat: {report.plagiarismScore ?? "Analyse..."} {report.plagiarismScore !== undefined ? `% - ${plagiarismStatus.label}` : ""}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="ml-auto h-6 w-6 p-0"
-                            onClick={() => recheckMutation.mutate(report.id)}
-                            data-testid={`button-recheck-${report.id}`}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      ) : null}
-                      {report.comments && (
-                        <Alert className="mt-2">
-                          <AlertDescription className="text-xs">
-                            {report.comments}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">Aucun rapport déposé</h3>
-              <p className="text-sm text-muted-foreground">
-                Commencez par déposer votre premier rapport ci-dessus
-              </p>
-            </div>
+            <ReportTimeline 
+              reports={reports} 
+              onDownload={handleDownloadReport}
+              onView={(id) => {
+                const report = reports.find(r => r.id === id);
+                if (report?.fileUrl) window.open(report.fileUrl, '_blank');
+              }}
+            />
           )}
         </CardContent>
       </Card>
