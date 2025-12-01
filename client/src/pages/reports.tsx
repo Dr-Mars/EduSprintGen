@@ -39,7 +39,7 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
   const { toast } = useToast();
   
   // Fetch student's proposal if not provided
-  const { data: proposals = [] } = useQuery({
+  const { data: proposals = [] } = useQuery<any[]>({
     queryKey: ["/api/proposals"],
   });
   
@@ -47,7 +47,7 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
   const proposalId = initialProposalId || studentProposal?.id;
   
   // Fetch reports for the proposal
-  const { data: reports = [], isLoading, refetch } = useQuery({
+  const { data: reports = [], isLoading, refetch } = useQuery<Report[]>({
     queryKey: proposalId ? ["/api/proposals", proposalId, "reports"] : ["reports"],
     enabled: !!proposalId,
   });
@@ -148,10 +148,10 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
   };
 
   const handleDownloadReport = (reportId: string) => {
-    const report = reports.find(r => r.id === reportId);
+    const report = reports.find((r: Report) => r.id === reportId);
     if (report) {
       const link = document.createElement('a');
-      link.href = report.fileUrl || '#';
+      link.href = (report as any).fileUrl || '#';
       link.download = report.fileName;
       link.click();
       toast({ title: "Succès", description: "Rapport en téléchargement" });
@@ -271,11 +271,11 @@ export default function ReportsPage({ proposalId: initialProposalId, user }: Rep
             </div>
           ) : (
             <ReportTimeline 
-              reports={reports} 
+              reports={reports as Report[]} 
               onDownload={handleDownloadReport}
               onView={(id) => {
-                const report = reports.find(r => r.id === id);
-                if (report?.fileUrl) window.open(report.fileUrl, '_blank');
+                const report = reports.find((r: Report) => r.id === id);
+                if ((report as any)?.fileUrl) window.open((report as any).fileUrl, '_blank');
               }}
             />
           )}

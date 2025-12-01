@@ -30,6 +30,7 @@ import AdminAuditLogs from "@/pages/admin-audit-logs";
 import VideoconferenceBooking from "@/pages/videoconference-booking";
 import VideoconferenceRoom from "@/pages/videoconference-room";
 import SignatureManagement from "@/pages/signature-management";
+import PFEDurationTimeline from "@/pages/pfe-duration-timeline";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import { useQuery } from "@tanstack/react-query";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/videoconferences" component={() => <VideoconferenceBooking />} />
       <Route path="/videoconference/:sessionId" component={() => <VideoconferenceRoom />} />
       <Route path="/signatures" component={() => <SignatureManagement />} />
+      <Route path="/pfe-timeline" component={() => <PFEDurationTimeline />} />
       <Route path="/forgot-password" component={() => <ForgotPasswordPage />} />
       <Route path="/reset-password/:token" component={() => <ResetPasswordPage />} />
       <Route component={NotFound} />
