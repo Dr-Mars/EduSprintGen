@@ -280,6 +280,35 @@ export const twoFactorAuth = pgTable("two_factor_auth", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Videoconference Sessions Table
+export const videoconferenceSessions = pgTable("videoconference_sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  defenseId: uuid("defense_id").notNull().references(() => defenses.id),
+  roomCode: varchar("room_code", { length: 20 }).notNull().unique(),
+  meetingLink: text("meeting_link"),
+  hostId: uuid("host_id").notNull().references(() => users.id),
+  status: varchar("status", { length: 20 }).notNull().default("scheduled"), // scheduled, ongoing, completed
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  recordingUrl: text("recording_url"),
+  participantsList: text("participants_list"), // JSON array
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Digital Signatures Table
+export const digitalSignatures = pgTable("digital_signatures", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: varchar("document_id", { length: 255 }).notNull(), // Report or Proposal ID
+  documentType: varchar("document_type", { length: 50 }).notNull(), // report, proposal, defense_record
+  signerId: uuid("signer_id").notNull().references(() => users.id),
+  signatureData: text("signature_data").notNull(), // Base64 encoded SVG/PNG
+  signatureTimestamp: timestamp("signature_timestamp").notNull(),
+  certificateHash: varchar("certificate_hash", { length: 255 }),
+  isValid: boolean("is_valid").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   pfeProposalsAsStudent: many(pfeProposals, { relationName: "studentProposals" }),
@@ -406,6 +435,24 @@ export const twoFactorAuthRelations = relations(twoFactorAuth, ({ one }) => ({
   }),
 }));
 
+export const videoconferenceSessionsRelations = relations(videoconferenceSessions, ({ one }) => ({
+  defense: one(defenses, {
+    fields: [videoconferenceSessions.defenseId],
+    references: [defenses.id],
+  }),
+  host: one(users, {
+    fields: [videoconferenceSessions.hostId],
+    references: [users.id],
+  }),
+}));
+
+export const digitalSignaturesRelations = relations(digitalSignatures, ({ one }) => ({
+  signer: one(users, {
+    fields: [digitalSignatures.signerId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -500,6 +547,19 @@ export const insertTwoFactorAuthSchema = createInsertSchema(twoFactorAuth).omit(
   enabledAt: true,
 });
 
+export const insertVideoconferenceSessionSchema = createInsertSchema(videoconferenceSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  startedAt: true,
+  endedAt: true,
+});
+
+export const insertDigitalSignatureSchema = createInsertSchema(digitalSignatures).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -553,6 +613,12 @@ export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertTwoFactorAuth = z.infer<typeof insertTwoFactorAuthSchema>;
 export type TwoFactorAuth = typeof twoFactorAuth.$inferSelect;
 
+export type InsertVideoconferenceSession = z.infer<typeof insertVideoconferenceSessionSchema>;
+export type VideoconferenceSession = typeof videoconferenceSessions.$inferSelect;
+
+export type InsertDigitalSignature = z.infer<typeof insertDigitalSignatureSchema>;
+export type DigitalSignature = typeof digitalSignatures.$inferSelect;
+
 // Login schema
 export const loginSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -585,3 +651,19 @@ export const verify2FASchema = z.object({
 
 export type Enable2FARequest = z.infer<typeof enable2FASchema>;
 export type Verify2FARequest = z.infer<typeof verify2FASchema>;
+
+// Videoconference schemas
+export const createVideoconferenceSchema = z.object({
+  defenseId: z.string().uuid("ID défense invalide"),
+  hostId: z.string().uuid("ID hôte invalide"),
+});
+
+// Signature schemas
+export const createSignatureSchema = z.object({
+  documentId: z.string().min(1, "ID document requis"),
+  documentType: z.enum(["report", "proposal", "defense_record"]),
+  signatureData: z.string().min(10, "Signature requise"),
+});
+
+export type CreateVideoconferenceRequest = z.infer<typeof createVideoconferenceSchema>;
+export type CreateSignatureRequest = z.infer<typeof createSignatureSchema>;
