@@ -1678,6 +1678,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PFE TIMELINE - Teacher view
+  // ============================================
+
+  app.get("/api/teacher/pfe-timeline", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      // Mock data - in production, fetch from database
+      // Teachers see all students assigned to them with PFE progress
+      const mockStudentPFEs = [
+        {
+          id: "pfe-1",
+          studentId: "student-1",
+          studentName: "Fatima Ben Ali",
+          proposalTitle: "Système de détection d'anomalies par ML",
+          proposalType: "academic",
+          startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days ago
+          expectedEndDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days from now
+          status: "in_progress",
+          progressPercentage: 50,
+          milestones: {
+            proposalApproved: true,
+            proposalApprovedDate: new Date(Date.now() - 80 * 24 * 60 * 60 * 1000).toISOString(),
+            midtermSubmitted: true,
+            midtermDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+            finalSubmitted: false,
+            finalDate: undefined,
+            defenseScheduled: false,
+            defenseDate: undefined,
+          },
+        },
+        {
+          id: "pfe-2",
+          studentId: "student-2",
+          studentName: "Omar Hassani",
+          proposalTitle: "Application mobile de gestion de stock",
+          proposalType: "company",
+          startDate: new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString(),
+          expectedEndDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "at_risk",
+          progressPercentage: 85,
+          milestones: {
+            proposalApproved: true,
+            proposalApprovedDate: new Date(Date.now() - 140 * 24 * 60 * 60 * 1000).toISOString(),
+            midtermSubmitted: true,
+            midtermDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+            finalSubmitted: true,
+            finalDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+            defenseScheduled: false,
+            defenseDate: undefined,
+          },
+        },
+      ];
+      res.json(mockStudentPFEs);
+    } catch (error: any) {
+      console.error("Get PFE timeline error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
