@@ -1539,6 +1539,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PHASE 4: VIDEOCONFERENCE ROUTES
+  // ============================================
+
+  app.get("/api/videoconferences", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const sessions = await storage.listVideoconferenceSessions();
+      res.json(sessions);
+    } catch (error: any) {
+      console.error("List videoconferences error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.get("/api/videoconferences/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getVideoconferenceSession(req.params.id);
+      if (!session) {
+        return res.status(404).json({ error: "Session non trouvée" });
+      }
+      res.json(session);
+    } catch (error: any) {
+      console.error("Get videoconference error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.post("/api/videoconferences", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { defenseId, hostId } = req.body;
+      const roomCode = `ROOM-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      const session = await storage.createVideoconferenceSession({
+        defenseId,
+        hostId: hostId || "default-host-id",
+        roomCode,
+        status: "scheduled",
+      });
+      res.json(session);
+    } catch (error: any) {
+      console.error("Create videoconference error:", error);
+      res.status(500).json({ error: "Erreur lors de la création" });
+    }
+  });
+
+  app.patch("/api/videoconferences/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const session = await storage.updateVideoconferenceSession(req.params.id, req.body);
+      if (!session) {
+        return res.status(404).json({ error: "Session non trouvée" });
+      }
+      res.json(session);
+    } catch (error: any) {
+      console.error("Update videoconference error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  app.delete("/api/videoconferences/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      await storage.updateVideoconferenceSession(req.params.id, { status: "completed" });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete videoconference error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
+  // ============================================
+  // PHASE 4: DIGITAL SIGNATURE ROUTES
+  // ============================================
+
+  app.get("/api/signatures", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { documentId } = req.query;
+      const signatures = await storage.listDigitalSignatures(documentId as string);
+      res.json(signatures);
+    } catch (error: any) {
+      console.error("List signatures error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.get("/api/signatures/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const signature = await storage.getDigitalSignature(req.params.id);
+      if (!signature) {
+        return res.status(404).json({ error: "Signature non trouvée" });
+      }
+      res.json(signature);
+    } catch (error: any) {
+      console.error("Get signature error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération" });
+    }
+  });
+
+  app.post("/api/signatures", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const { documentId, documentType, signatureData, signatureTimestamp } = req.body;
+      if (!documentId || !documentType || !signatureData) {
+        return res.status(400).json({ error: "Données manquantes" });
+      }
+      const signature = await storage.createDigitalSignature({
+        documentId,
+        documentType,
+        signerId: "current-user-id",
+        signatureData,
+        signatureTimestamp: new Date(signatureTimestamp),
+        isValid: true,
+      });
+      res.json(signature);
+    } catch (error: any) {
+      console.error("Create signature error:", error);
+      res.status(500).json({ error: "Erreur lors de la création" });
+    }
+  });
+
+  app.patch("/api/signatures/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      const signature = await storage.updateDigitalSignature(req.params.id, req.body);
+      if (!signature) {
+        return res.status(404).json({ error: "Signature non trouvée" });
+      }
+      res.json(signature);
+    } catch (error: any) {
+      console.error("Update signature error:", error);
+      res.status(500).json({ error: "Erreur lors de la mise à jour" });
+    }
+  });
+
+  app.delete("/api/signatures/:id", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      await storage.updateDigitalSignature(req.params.id, { isValid: false });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete signature error:", error);
+      res.status(500).json({ error: "Erreur lors de la suppression" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
