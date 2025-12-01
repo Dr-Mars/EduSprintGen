@@ -32,9 +32,12 @@ interface StudentPFE {
 }
 
 export default function PFEDurationTimeline() {
-  const { data: studentPFEs = [], isLoading } = useQuery<StudentPFE[]>({
+  const { data: studentPFEs = [], isLoading } = useQuery<StudentPFE[], any, StudentPFE[]>({
     queryKey: ["/api/teacher/pfe-timeline"],
-    queryFn: () => apiRequest("GET", "/api/teacher/pfe-timeline"),
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/teacher/pfe-timeline");
+      return Array.isArray(response) ? response : [];
+    },
   });
 
   const getMilestoneStatus = (milestone: boolean | undefined) => {
@@ -78,7 +81,7 @@ export default function PFEDurationTimeline() {
             <Skeleton key={i} className="h-64 w-full" />
           ))}
         </div>
-      ) : studentPFEs.length === 0 ? (
+      ) : (studentPFEs as StudentPFE[]).length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <p>Aucun étudiant assigné pour le moment</p>
@@ -86,7 +89,7 @@ export default function PFEDurationTimeline() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {studentPFEs.map((pfe) => {
+          {(studentPFEs as StudentPFE[]).map((pfe: StudentPFE) => {
             const startDate = new Date(pfe.startDate);
             const endDate = new Date(pfe.expectedEndDate);
             const today = new Date();
